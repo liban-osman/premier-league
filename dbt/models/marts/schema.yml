@@ -21,6 +21,25 @@ models:
       team's perspective, with FPL's own FDR rating plus a rolling average FDR
       over that team's next 5 unplayed fixtures.
 
+  - name: mart_league_table
+    description: >
+      One row per (load_date, team_id) -- the league table derived from
+      finished fixture results (points, W/D/L, goal difference), since FPL
+      zeroes the bootstrap team records in preseason snapshots.
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: load_date
+        data_tests:
+          - not_null
+      - name: points
+        data_tests:
+          - not_null
+      - name: position
+        data_tests:
+          - not_null
+
   - name: mart_transfer_decision
     description: >
       The decision layer: one row per (load_date, player_id) with a 0-100
