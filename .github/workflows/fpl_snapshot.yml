@@ -15,7 +15,8 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
       MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
-      SEASON: "2025"
+      # SEASON is deliberately not set: fpl_snapshot.py derives it from the
+      # API payload so the partition label rolls over with the season.
     steps:
       - uses: actions/checkout@v4
 
