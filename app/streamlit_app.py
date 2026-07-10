@@ -1,40 +1,45 @@
 import streamlit as st
 from db import get_conn
-from mplsoccer import Pitch
 
-st.title("Passes Visualization")
+st.set_page_config(page_title="FPL Transfer Decisions", layout="wide")
 
-# streamlit run app/streamlit_app.py
-
-
-# Pull events data for a specific game_id
-game_id = 1821049
-
-conn = get_conn()
-df_events = conn.execute(
-    "SELECT * FROM gold.fact_pass_events WHERE game_id = ?", [game_id]
-).df()
-conn.close()
-
-st.write(f"Showing passes for game_id {game_id}")
+st.title("FPL Transfer Decisions")
+st.caption(
+    "Daily FPL snapshots → MotherDuck → dbt. transfer_score is a weighted percentile "
+    "within position: 35% value (points per £m), 30% form, 20% fixture ease (next 5), "
+    "15% transfer momentum. Availability is a hard gate, not a weighted input."
+)
 
 
-# Plotting function
-def passes_plot(df_passes):
-    pitch = Pitch(pitch_type='opta', pitch_color='#22312b', line_color='#c7d5cc')
-    fig, ax = pitch.draw(figsize=(16, 11), constrained_layout=False, tight_layout=True)
-    fig.set_facecolor('#22312b')
-
-    df_suc = df_passes[df_passes["OUTCOME_TYPE"] == "Successful"]
-    pitch.lines(df_suc["X"], df_suc.Y, df_suc.END_X, df_suc.END_Y,
-                lw=5, transparent=True, comet=True, color='#ad993c', ax=ax)
-
-    df_unsuc = df_passes[df_passes["OUTCOME_TYPE"] == "Unsuccessful"]
-    pitch.lines(df_unsuc.X, df_unsuc.Y, df_unsuc.END_X, df_unsuc.END_Y,
-                lw=5, transparent=True, comet=True, color='#ba4f45', ax=ax)
-
-    ax.legend(facecolor='#22312b', edgecolor='None', fontsize=12, loc='upper left', handlelength=4)
-    st.pyplot(fig)
+# Cached for an hour: the mart only changes once a day when the snapshot lands.
+@st.cache_data(ttl=3600)
+def load_latest_snapshot():
+    conn = get_conn()
+    df = conn.execute(
+        """
+        select * from gold.mart_transfer_decision
+        where load_date = (select max(load_date) from gold.mart_transfer_decision)
+        order by transfer_score desc
+        """
+    ).df()
+    conn.close()
+    return df
 
 
-passes_plot(df_events)
+df = load_latest_snapshot()
+st.caption(f"Snapshot: {df['load_date'].iloc[0]:%Y-%m-%d} — {len(df)} players")
+
+left, right = st.columns(2)
+positions = left.multiselect("Position", df["position_short_name"].dropna().unique().tolist())
+recommendations = right.multiselect("Recommendation", df["recommendation"].unique().tolist())
+
+filtered = df
+if positions:
+    filtered = filtered[filtered["position_short_name"].isin(positions)]
+if recommendations:
+    filtered = filtered[filtered["recommendation"].isin(recommendations)]
+
+st.dataframe(
+    filtered.drop(columns=["load_date", "team_id", "position_id"]),
+    hide_index=True,
+)
