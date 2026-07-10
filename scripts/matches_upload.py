@@ -1,7 +1,8 @@
-import boto3
-from pathlib import Path
-from datetime import date
 import os
+from datetime import date
+from pathlib import Path
+
+import boto3
 from dotenv import load_dotenv
 
 # Load .env file
@@ -9,8 +10,8 @@ load_dotenv()
 
 # Read configuration from environment
 BUCKET = os.getenv("BUCKET")
-SEASON = os.getenv("SEASON", "2025")
-LOAD_DATE = os.getenv("LOAD_DATE", date.today().isoformat())
+SEASON = os.getenv("SEASON") or "2025"
+LOAD_DATE = os.getenv("LOAD_DATE") or date.today().isoformat()
 MATCHES_FOLDER = os.getenv("MATCHES_FOLDER")
 
 s3 = boto3.client("s3")
