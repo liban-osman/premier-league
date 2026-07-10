@@ -1,0 +1,26 @@
+name: "fpl_data_platform"
+version: "1.0.0"
+config-version: 2
+
+profile: "fpl_data_platform"
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# dbt's own vocabulary (staging/marts) maps directly onto this project's
+# raw -> silver -> gold layering from docs/architecture.md:
+#   staging = silver (cleaned, typed, one model per source)
+#   marts   = gold   (business-shaped, joined/aggregated for consumption)
+models:
+  fpl_data_platform:
+    staging:
+      +materialized: view
+      +schema: silver
+    marts:
+      +materialized: table
+      +schema: gold

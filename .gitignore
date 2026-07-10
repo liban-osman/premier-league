@@ -1,3 +1,20 @@
 .env
-*.toml
 CLAUDE.md
+
+# Streamlit secrets (credentials -- never commit)
+.streamlit/secrets.toml
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# dbt
+dbt/target/
+dbt/logs/
+dbt/.user.yml
+dbt/dbt_packages/
+*.duckdb
+*.duckdb.wal

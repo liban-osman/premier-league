@@ -1,31 +1,26 @@
 import streamlit as st
-import pandas as pd
+from db import get_conn
 from mplsoccer import Pitch
-import matplotlib.pyplot as plt
-from snowflake_conn import get_conn  # your existing helper
 
 st.title("Passes Visualization")
 
-# streamlit run c:/Users/liban/Documents/premier-league/app/streamlit_app.py
+# streamlit run app/streamlit_app.py
 
 
 # Pull events data for a specific game_id
 game_id = 1821049
 
 conn = get_conn()
-query = f"""
-SELECT *
-FROM gold.fact_pass_events
-WHERE game_id = {game_id}
-"""
-df_events = pd.read_sql(query, conn)
+df_events = conn.execute(
+    "SELECT * FROM gold.fact_pass_events WHERE game_id = ?", [game_id]
+).df()
 conn.close()
 
 st.write(f"Showing passes for game_id {game_id}")
 
+
 # Plotting function
 def passes_plot(df_passes):
-    #df_passes = df_passes[df_passes["TYPE"] == "Pass"]
     pitch = Pitch(pitch_type='opta', pitch_color='#22312b', line_color='#c7d5cc')
     fig, ax = pitch.draw(figsize=(16, 11), constrained_layout=False, tight_layout=True)
     fig.set_facecolor('#22312b')
@@ -40,5 +35,6 @@ def passes_plot(df_passes):
 
     ax.legend(facecolor='#22312b', edgecolor='None', fontsize=12, loc='upper left', handlelength=4)
     st.pyplot(fig)
+
 
 passes_plot(df_events)

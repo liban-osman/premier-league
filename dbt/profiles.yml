@@ -1,0 +1,16 @@
+# Committed deliberately -- no secrets live here. MotherDuck auth comes from
+# the MOTHERDUCK_TOKEN env var (read automatically by the duckdb extension),
+# not from this file. Needed because Docker/CI have no ~/.dbt/profiles.yml.
+fpl_data_platform:
+  target: dev
+  outputs:
+    # Shared, always-on -- what Airflow and the deployed Streamlit app use.
+    dev:
+      type: duckdb
+      path: "md:fpl_data_platform"
+      threads: 4
+    # Local scratch file for fast offline iteration: dbt run --target local
+    local:
+      type: duckdb
+      path: "fpl_data_platform.duckdb"
+      threads: 4
