@@ -20,3 +20,26 @@ models:
       One row per (load_date, team_id, fixture_id) -- every fixture from each
       team's perspective, with FPL's own FDR rating plus a rolling average FDR
       over that team's next 5 unplayed fixtures.
+
+  - name: mart_transfer_decision
+    description: >
+      The decision layer: one row per (load_date, player_id) with a 0-100
+      transfer_score (weighted percentile of value, form, fixture ease, and
+      transfer momentum within position) and a recommendation bucket, with
+      availability as a hard gate.
+    columns:
+      - name: player_id
+        data_tests:
+          - not_null
+      - name: load_date
+        data_tests:
+          - not_null
+      - name: transfer_score
+        data_tests:
+          - not_null
+      - name: recommendation
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['transfer_in', 'hold', 'monitor', 'drop']
