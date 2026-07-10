@@ -30,7 +30,20 @@ These entries supersede rather than edit the originals above, per this log's own
 | 14 | Streamlit hosting | **Streamlit Community Cloud** (not local-only `streamlit run`) | Free for a public repo; turns this into a link instead of code a hiring manager would have to clone and run. |
 | 15 | MotherDuck vs. DuckDB-file-in-S3 | **MotherDuck free tier** | Airflow and Streamlit Cloud run in separate environments and both need the same data. MotherDuck gives a real hosted DuckDB reachable from both over the network — no custom file-sync code to write or maintain. |
 
+## Phase 4 + consumption: decision layer and league pages (2026-07-10)
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 16 | Decider output shape (resolves open decision #1) | **Weighted percentile score** (0–100) + recommendation buckets, availability as a **hard gate** | Each signal becomes a `percent_rank` within (load_date, position) so a weighted sum is meaningful — raw units (points per £m vs transfer counts) can't be added. Weights (35% value / 30% form / 20% fixtures / 15% momentum) are explicit and tunable, unlike a fitted model. Injury is a rule, not a 15% penalty: high_risk forces drop, doubtful caps at monitor. Missing signals coalesce to a neutral 0.5, so offseason snapshots still score sensibly. |
+| 17 | League table source | **Derived from finished fixture results**, not the bootstrap `teams` block | FPL zeroes team W/D/L/points in preseason snapshots, so the bootstrap fields are not durable. Fixture scores are. Guarded by a goals-balance singular test (league-wide goals_for = goals_against per snapshot); derived standings cross-check against the `league_position` remnants FPL leaves behind. Tiebreaks: points, GD, GF (head-to-head not modelled). |
+| 18 | WhoScored on the public app | **Heavy aggregates only** — never raw events or per-match detail | The data is not-for-redistribution; a public Streamlit URL is redistribution just as much as a public repo. Season-level derived metrics (rates, composites, rankings) are the ceiling. The old pass-map page (per-match event rendering) was removed accordingly. |
+| 19 | When a page may read `silver` directly | **Allowed for pure projections** (player stats page); marts reserved for business logic | A mart that is a `select *` pass-through of staging adds a copy to maintain, not value. The league table and transfer score encode real logic and get marts; leaderboards that only select/join/sort do not. |
+| 20 | League pages build order | **FPL-derived pages first**, before WhoScored staging or Understat ingestion | Everything needed (goals, assists, xG, fixtures) already lands daily from the FPL API — shippable immediately with zero new ingestion. WhoScored pages depend on the licensing ceiling (#18); Understat is its own design-first integration. |
+
 ## Deferred (still open)
 
 - **FPL ↔ WhoScored join key.** No natural shared player/team identifier between the two
   sources. Will likely need an explicit mapping table. Deferred to Phase 4 schema design.
+- **Understat integration.** Third source with a real API (xG depth for the league pages and
+  the decision layer). S3 prefix reserved; needs its own decision-log entry + architecture
+  update before code, per the design-first rule.
