@@ -1,0 +1,36 @@
+name: FPL Snapshot
+
+on:
+  schedule:
+    # 06:00 UTC daily -- ahead of most FPL price-change activity
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    env:
+      BUCKET: ${{ secrets.BUCKET }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+      MOTHERDUCK_TOKEN: ${{ secrets.MOTHERDUCK_TOKEN }}
+      SEASON: "2025"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Fetch FPL snapshot and land in S3
+        run: uv run python scripts/fpl_snapshot.py
+
+      - name: Load raw table in MotherDuck
+        run: uv run python scripts/load_raw.py fpl_bootstrap
+
+      - name: Run dbt (staging + marts, whatever models exist)
+        run: uv run dbt build --project-dir dbt --profiles-dir dbt

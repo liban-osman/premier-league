@@ -1,0 +1,13 @@
+version: 2
+
+sources:
+  - name: raw
+    schema: raw
+    description: Tables loaded by scripts/load_raw.py directly from S3 via DuckDB's httpfs.
+    tables:
+      - name: fpl_bootstrap
+        description: Full FPL bootstrap-static snapshot, one row per player, across all load dates.
+      - name: whoscored_events
+        description: WhoScored per-match event export, across all load dates.
+      - name: whoscored_matches
+        description: WhoScored per-match summary export, across all load dates.

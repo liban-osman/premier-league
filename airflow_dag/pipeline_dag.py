@@ -1,30 +1,51 @@
-from airflow import DAG
-from airflow.providers.snowflake.operators.snowflake import SnowflakeOperator
+import sys
 from datetime import datetime
 
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+from airflow.operators.python import PythonOperator
+
+# dbt lives in its own venv inside the image (see Dockerfile) -- its
+# dependencies conflict with Airflow's own constraints file, so it can't
+# share Airflow's Python environment.
+DBT_BIN = "/home/airflow/dbt-venv/bin/dbt"
+DBT_PROJECT_DIR = "/opt/airflow/dbt"
+
+sys.path.insert(0, "/opt/airflow/scripts")
+
+
+def load_raw():
+    from load_raw import load_raw_table
+
+    load_raw_table("whoscored_events")
+    load_raw_table("whoscored_matches")
+
+
 with DAG(
-    dag_id="prem_pipeline",
-    start_date=datetime(2024,1,1),
-    schedule_interval="@daily",
-    catchup=False
+    dag_id="events_pipeline",
+    start_date=datetime(2024, 1, 1),
+    schedule=None,  # manual trigger: gated on a human WhoScored export, not a fixed cadence
+    catchup=False,
 ) as dag:
-
-    load_raw = SnowflakeOperator(
+    load_raw_task = PythonOperator(
         task_id="load_raw",
-        snowflake_conn_id="snowflake_prem",
-        sql="sql/raw/load_raw.sql"
+        python_callable=load_raw,
     )
 
-    transform_silver = SnowflakeOperator(
-        task_id="transform_silver",
-        snowflake_conn_id="snowflake_prem",
-        sql="sql/silver/transform_events_silver.sql"
+    run_staging = BashOperator(
+        task_id="run_staging",
+        bash_command=(
+            f"{DBT_BIN} run --select staging "
+            f"--project-dir {DBT_PROJECT_DIR} --profiles-dir {DBT_PROJECT_DIR}"
+        ),
     )
 
-    aggregate_gold = SnowflakeOperator(
-        task_id="aggregate_gold",
-        snowflake_conn_id="snowflake_prem",
-        sql="sql/gold/aggregate_pass_maps.sql"
+    run_marts = BashOperator(
+        task_id="run_marts",
+        bash_command=(
+            f"{DBT_BIN} run --select marts "
+            f"--project-dir {DBT_PROJECT_DIR} --profiles-dir {DBT_PROJECT_DIR}"
+        ),
     )
 
-    load_raw >> transform_silver >> aggregate_gold
+    load_raw_task >> run_staging >> run_marts
