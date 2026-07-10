@@ -111,9 +111,10 @@ permitted ceiling.
 - **Understat is reserved, not wired.** The `understat/` S3 prefix exists; no script, DAG, or
   dbt source touches it yet. Integrating it is its own design-first step (decision log entry +
   diagram update before code).
-- **`SEASON` is pinned to `"2025"`** in the workflow and `.env`. When FPL rolls the API to
-  2026/27 (typically late July), snapshots would mislabel into the old partition — needs a
-  bump or a derived value before then.
+- ~~**`SEASON` pinned to `"2025"`**~~ Resolved 2026-07-10: `fpl_snapshot.py` derives the
+  season from the API payload (first gameweek deadline year), so the partition label rolls
+  over automatically on flip day. `SEASON` env var remains as a manual-backfill override and
+  still labels the WhoScored upload scripts.
 - **Unused app dependencies.** `mplsoccer` / `matplotlib` remain in `pyproject.toml` after the
   pass-map page was removed; dropping them requires regenerating `uv.lock`, and `uv` isn't
   installed on the dev machine. Cleanup deferred, deliberately, to avoid breaking the
