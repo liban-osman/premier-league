@@ -29,8 +29,10 @@ jobs:
       - name: Fetch FPL snapshot and land in S3
         run: uv run python scripts/fpl_snapshot.py
 
-      - name: Load raw table in MotherDuck
-        run: uv run python scripts/load_raw.py fpl_bootstrap
+      - name: Load raw tables in MotherDuck
+        run: |
+          uv run python scripts/load_raw.py fpl_bootstrap
+          uv run python scripts/load_raw.py fpl_fixtures
 
       - name: Run dbt (staging + marts, whatever models exist)
         run: uv run dbt build --project-dir dbt --profiles-dir dbt

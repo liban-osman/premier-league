@@ -13,6 +13,7 @@ LOCAL_STAGING_DB = "_staging.duckdb"
 # read_json_auto infers schema across all matching files.
 SOURCES = {
     "fpl_bootstrap": "fpl/season=*/load_date=*/bootstrap_static.json",
+    "fpl_fixtures": "fpl/season=*/load_date=*/fixtures.json",
     "whoscored_events": "whoscored/events/season=*/load_date=*/*.json",
     "whoscored_matches": "whoscored/matches/season=*/load_date=*/*.json",
 }

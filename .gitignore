@@ -18,3 +18,4 @@ dbt/.user.yml
 dbt/dbt_packages/
 *.duckdb
 *.duckdb.wal
+*.duckdb.tmp/
