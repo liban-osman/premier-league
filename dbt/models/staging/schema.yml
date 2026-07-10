@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: stg_fpl_players
+    description: One row per (load_date, player_id) -- the unnested, typed player snapshot time series.
+    columns:
+      - name: player_id
+        description: FPL element id.
+        data_tests:
+          - not_null
+      - name: load_date
+        data_tests:
+          - not_null
+      - name: now_cost
+        description: Price in tenths of a million GBP (62 == GBP 6.2m).
+
+  - name: stg_fpl_teams
+    description: One row per (load_date, team_id) -- team strength/form/table position, historized.
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: load_date
+        data_tests:
+          - not_null
+
+  - name: stg_fpl_fixtures
+    description: One row per (load_date, fixture_id) -- the full 38-gameweek fixture list with FPL's own FDR ratings.
+    columns:
+      - name: fixture_id
+        data_tests:
+          - not_null
+      - name: load_date
+        data_tests:
+          - not_null
+
+  - name: stg_fpl_positions
+    description: One row per position_id (GKP/DEF/MID/FWD). Static reference data, deduped to the latest snapshot.
+    columns:
+      - name: position_id
+        data_tests:
+          - not_null
+          - unique

@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: mart_player_price_momentum
+    description: >
+      Player price/ownership movement between consecutive snapshots -- the
+      "rising/falling" transfer-in-or-drop signal the raw FPL API can't give you.
+
+  - name: mart_player_value
+    description: Points-per-GBP-million, ranked within position, recomputed per snapshot.
+
+  - name: mart_player_form_trend
+    description: Form and total_points movement between consecutive snapshots.
+
+  - name: mart_player_availability_risk
+    description: Collapses status, chance_of_playing_next_round, and news into one risk flag.
+
+  - name: mart_team_fixture_difficulty
+    description: >
+      One row per (load_date, team_id, fixture_id) -- every fixture from each
+      team's perspective, with FPL's own FDR rating plus a rolling average FDR
+      over that team's next 5 unplayed fixtures.

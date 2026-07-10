@@ -6,7 +6,15 @@ sources:
     description: Tables loaded by scripts/load_raw.py directly from S3 via DuckDB's httpfs.
     tables:
       - name: fpl_bootstrap
-        description: Full FPL bootstrap-static snapshot, one row per player, across all load dates.
+        description: >
+          Full FPL bootstrap-static snapshot, one row per load_date (players,
+          teams, positions land nested inside as JSON arrays -- see
+          stg_fpl_players/stg_fpl_teams/stg_fpl_positions for the unnested form).
+      - name: fpl_fixtures
+        description: >
+          Full FPL fixtures list (all 38 gameweeks, past and future), one row
+          per fixture per load_date. Includes team_h_difficulty/team_a_difficulty
+          (FPL's own 1-5 FDR rating) directly -- no need to derive it ourselves.
       - name: whoscored_events
         description: WhoScored per-match event export, across all load dates.
       - name: whoscored_matches
