@@ -25,3 +25,16 @@ sources:
           WhoScored fixture-calendar export (paged match lists). Deliberately
           unstaged: everything downstream needs already sits on the
           whoscored_events payload top level.
+      - name: understat_players
+        description: >
+          Understat per-player season stats (xG, xA, npxG, xGChain...), one row
+          per player per season file. Numbers arrive as strings -- typed in
+          staging. Refreshed weekly; staging reads the latest load_date per season.
+      - name: understat_matches
+        description: >
+          Understat match results with per-side xG, one row per match per
+          season file.
+      - name: understat_teams
+        description: >
+          Understat per-team season entry with a nested per-match history array
+          (xG/xGA, PPDA, deep completions, xPTS) -- unnested in staging.

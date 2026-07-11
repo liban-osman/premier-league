@@ -89,3 +89,45 @@ models:
       - name: player_name
         data_tests:
           - not_null
+
+  - name: stg_understat_players
+    description: >
+      One row per (season, player) -- Understat's season aggregates (xG, xA,
+      npxG, xGChain, xGBuildup). Latest load_date per season only.
+    columns:
+      - name: player_ud_id
+        data_tests:
+          - not_null
+      - name: player_name
+        data_tests:
+          - not_null
+      - name: season
+        data_tests:
+          - not_null
+
+  - name: stg_understat_matches
+    description: >
+      One row per (season, match) with per-side goals and xG. Unplayed
+      fixtures keep is_result = false and null goals/xG.
+    columns:
+      - name: match_ud_id
+        data_tests:
+          - not_null
+      - name: season
+        data_tests:
+          - not_null
+
+  - name: stg_understat_team_matches
+    description: >
+      One row per (season, team, match_date) -- per-match team analytics
+      (xG/xGA, PPDA, deep completions, xPTS) unnested from the team history.
+    columns:
+      - name: team_ud_id
+        data_tests:
+          - not_null
+      - name: team_name
+        data_tests:
+          - not_null
+      - name: match_date
+        data_tests:
+          - not_null

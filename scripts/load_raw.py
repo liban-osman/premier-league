@@ -16,6 +16,9 @@ SOURCES = {
     "fpl_fixtures": "fpl/season=*/load_date=*/fixtures.json",
     "whoscored_events": "whoscored/events/season=*/load_date=*/*.json",
     "whoscored_matches": "whoscored/matches/season=*/load_date=*/*.json",
+    "understat_players": "understat/season=*/load_date=*/players.json",
+    "understat_matches": "understat/season=*/load_date=*/matches.json",
+    "understat_teams": "understat/season=*/load_date=*/teams.json",
 }
 
 

@@ -1,4 +1,4 @@
-version: 2
+﻿version: 2
 
 models:
   - name: player_id_map
@@ -24,4 +24,26 @@ models:
           - not_null
           - accepted_values:
               arguments:
-                values: ["full_name", "short_name", "web_name"]
+                values: ["full_name", "short_name", "first_tokens", "web_name"]
+
+  - name: player_id_map_understat
+    description: >
+      One row per confidently matched player -- the FPL <-> Understat join key,
+      built by the same deterministic rule ladder as player_id_map. Both
+      sources cover 2025/26, so unmatched players here are rarer and worth a
+      look, unlike the expected cross-season gaps in the WhoScored map.
+    columns:
+      - name: player_ud_id
+        data_tests:
+          - not_null
+          - unique
+      - name: fpl_player_id
+        data_tests:
+          - not_null
+          - unique
+      - name: match_rule
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["full_name", "short_name", "first_tokens", "web_name"]

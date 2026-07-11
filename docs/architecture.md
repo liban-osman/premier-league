@@ -12,18 +12,19 @@ flowchart LR
     subgraph Sources
         FPL["FPL Official API<br/>current-state only<br/>bootstrap-static + fixtures"]
         WS["WhoScored export<br/>proprietary, manual, not-for-redistribution"]
-        US["Understat API<br/>planned -- xG depth"]
+        US["Understat getLeagueData<br/>undocumented JSON endpoint -- xG depth,<br/>history to 2014/15"]
     end
 
     subgraph Ingestion["Ingestion"]
         FPL_TASK["fpl_snapshot_pipeline<br/>GitHub Actions, @daily"]
         WS_TASK["events_pipeline<br/>Airflow, local Docker, manual trigger"]
+        US_TASK["understat_snapshot_pipeline<br/>GitHub Actions, @weekly + backfill dispatch"]
     end
 
     subgraph Landing["S3 -- raw JSON, partitioned"]
         S3_FPL["fpl/season=.../load_date=.../"]
         S3_WS["whoscored/events & matches/season=.../load_date=.../"]
-        S3_US["understat/ -- prefix reserved"]
+        S3_US["understat/season=.../load_date=.../"]
     end
 
     subgraph Warehouse["MotherDuck (DuckDB), via dbt"]
@@ -35,7 +36,7 @@ flowchart LR
 
     FPL --> FPL_TASK --> S3_FPL --> RAW
     WS --> WS_TASK --> S3_WS --> RAW
-    US -.-> S3_US -.-> RAW
+    US --> US_TASK --> S3_US --> RAW
     GOLD --> Consumption
 ```
 
@@ -54,6 +55,13 @@ different automation stories:
   scheduler running unattended 24/7 for a personal project, and Actions is free for a public
   repo. `BUCKET`, `AWS_*`, and `MOTHERDUCK_TOKEN` live as **GitHub repo secrets** (configured,
   live, and green as of 2026-07-10).
+- `understat_snapshot_pipeline` — **GitHub Actions cron, `@weekly`** (Mondays, after the
+  weekend round), plus `workflow_dispatch` with a seasons input for historical backfill.
+  Weekly, not daily, and a separate workflow from the FPL snapshot on purpose: Understat
+  serves full history on demand (no snapshot urgency — see decision log #26), and a scrape
+  failure against an undocumented endpoint must never take down the live daily FPL pipeline.
+  One `GET /getLeagueData/EPL/{season}` per season; the payload splits into three
+  top-level-array JSON files (`players` / `matches` / `teams`) before landing (#27).
 - `events_pipeline` — stays on **Airflow, local Docker, LocalExecutor**, manually triggered.
   This DAG already exists (`airflow_dag/pipeline_dag.py`) and is kept specifically as a
   demonstrated artifact of Airflow fluency, even though it isn't the thing actually running the
@@ -69,9 +77,12 @@ different automation stories:
   `positions` (unnested from bootstrap), `stg_fpl_fixtures`, and the WhoScored side:
   `stg_whoscored_matches` / `events` / `players`, all read off the match-centre payload in
   `raw.whoscored_events` (one row per match; the calendar export carries nothing extra and
-  stays unstaged). Silver also holds one **mapping** model materialized as a table:
-  `player_id_map`, the explicit FPL ↔ WhoScored join key — a ladder of deterministic
-  exact name-match rules (no fuzzy matching; 1:1 enforced by tests). See decision log #21–24.
+  stays unstaged); and the Understat side: `stg_understat_players` / `matches` /
+  `team_matches`, which read **only the latest load_date per season** (refresh semantics —
+  decision log #26). Silver also holds the **mapping** models, materialized as tables:
+  `player_id_map` (FPL ↔ WhoScored) and `player_id_map_understat` (FPL ↔ Understat) — the
+  explicit cross-source join keys, each a ladder of deterministic exact name-match rules
+  (no fuzzy matching; 1:1 enforced by tests). See decision log #21–24 and #28.
 - `gold` = dbt **marts** models (tables):
   - five signal marts — form trend, price momentum, team fixture difficulty (rolling next-5
     FDR), value (points per £m ranked in position), availability risk;
@@ -116,9 +127,10 @@ permitted ceiling.
   test (goal events = ftScore goals). Note the export is the **2024/25** season — one season
   behind the FPL snapshots — so cross-source joins are cross-season until a 2025/26 export
   is uploaded.
-- **Understat is reserved, not wired.** The `understat/` S3 prefix exists; no script, DAG, or
-  dbt source touches it yet. Integrating it is its own design-first step (decision log entry +
-  diagram update before code).
+- ~~**Understat is reserved, not wired.**~~ Resolved 2026-07-11: `understat_snapshot.py` +
+  weekly workflow land seasons 2024 and 2025; staging (`stg_understat_players` / `matches` /
+  `team_matches`) reads the latest load_date per season; `player_id_map_understat` joins to
+  FPL. Consumption (xG league pages, decision-layer enrichment) is the follow-up step.
 - ~~**`SEASON` pinned to `"2025"`**~~ Resolved 2026-07-10: `fpl_snapshot.py` derives the
   season from the API payload (first gameweek deadline year), so the partition label rolls
   over automatically on flip day. `SEASON` env var remains as a manual-backfill override and
