@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(page_title="FPL Data Platform", layout="wide")
+st.set_page_config(page_title="FPL Data Platform", page_icon="⚽", layout="wide")
 
 pg = st.navigation(
     [

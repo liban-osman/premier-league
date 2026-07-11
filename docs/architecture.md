@@ -104,12 +104,18 @@ Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
 on every push to `main`. Four pages behind `st.navigation`:
 
-- **Transfer decisions** — the headline view over `mart_transfer_decision`, filterable by
-  position and recommendation.
-- **League table** — reads `mart_league_table`.
-- **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter; reads
-  `silver` directly, deliberately: these are pure projections with no business logic, and a
-  pass-through mart would add a copy, not value.
+- **Transfer decisions** — the headline view over `mart_transfer_decision`: top pick per
+  position, position/recommendation/search filters, and a click-a-row card showing the four
+  weighted signals behind the score.
+- **League table** — reads `mart_league_table`: badges, last-5 form guide, and
+  qualification/relegation zone tints.
+- **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter with
+  click-a-point player cards; reads `silver` directly, deliberately: these are pure
+  projections with no business logic, and a pass-through mart would add a copy, not value.
+
+Team badges and player photos hotlink the official Premier League asset CDN, keyed on the
+stable asset codes staged in `stg_fpl_teams` / `stg_fpl_players` (decision log #29) —
+nothing is stored in the repo.
 - **xG analytics** — Understat-powered, season-selectable (2024/25 and 2025/26): team xG
   table with xPTS and PPDA, points-vs-xPTS scatter, finishing over/under-performance.
   Same silver-read policy; attributes the xG model to Understat on-page.

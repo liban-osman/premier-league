@@ -16,7 +16,8 @@ team_results as (
         season,
         home_team_id as team_id,
         home_score as goals_for,
-        away_score as goals_against
+        away_score as goals_against,
+        kickoff_time
     from fixtures
 
     union all
@@ -26,8 +27,36 @@ team_results as (
         season,
         away_team_id as team_id,
         away_score as goals_for,
-        home_score as goals_against
+        home_score as goals_against,
+        kickoff_time
     from fixtures
+),
+
+-- Form guide: each team's last five results as a 'W D L' string, oldest to
+-- newest, so the rightmost letter is the most recent match.
+form as (
+    select
+        load_date,
+        team_id,
+        string_agg(
+            case
+                when goals_for > goals_against then 'W'
+                when goals_for = goals_against then 'D'
+                else 'L'
+            end,
+            ' '
+            order by kickoff_time
+        ) as form_last_5
+    from (
+        select
+            *,
+            row_number() over (
+                partition by load_date, team_id order by kickoff_time desc
+            ) as recency
+        from team_results
+    )
+    where recency <= 5
+    group by load_date, team_id
 ),
 
 aggregated as (
@@ -65,6 +94,7 @@ select
     a.team_id,
     t.team_name,
     t.team_short_name,
+    t.team_code,
     a.played,
     a.won,
     a.drawn,
@@ -72,8 +102,11 @@ select
     a.goals_for,
     a.goals_against,
     a.goal_difference,
-    a.points
+    a.points,
+    f.form_last_5
 from aggregated a
 left join {{ ref('stg_fpl_teams') }} t
     on a.load_date = t.load_date and a.team_id = t.team_id
+left join form f
+    on a.load_date = f.load_date and a.team_id = f.team_id
 order by a.load_date, position

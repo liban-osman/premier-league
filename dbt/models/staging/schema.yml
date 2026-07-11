@@ -13,6 +13,12 @@ models:
           - not_null
       - name: now_cost
         description: Price in tenths of a million GBP (62 == GBP 6.2m).
+      - name: player_code
+        description: >
+          FPL's global player asset id (stable across seasons, unlike player_id);
+          keys the official player photos on resources.premierleague.com.
+        data_tests:
+          - not_null
 
   - name: stg_fpl_teams
     description: One row per (load_date, team_id) -- team strength/form/table position, historized.
@@ -21,6 +27,12 @@ models:
         data_tests:
           - not_null
       - name: load_date
+        data_tests:
+          - not_null
+      - name: team_code
+        description: >
+          FPL's global team asset id (stable across seasons, unlike team_id);
+          keys the official team badges on resources.premierleague.com.
         data_tests:
           - not_null
 

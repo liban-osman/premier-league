@@ -2,24 +2,13 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
+from ui import MUTED_INK, series_hues, text_halo, text_ink
 
 st.title("xG Analytics")
 st.caption(
     "Team and player expected-goals analytics. xG model: [Understat](https://understat.com) — "
     "season aggregates refreshed weekly."
 )
-
-# Hues from the validated reference palette (dataviz skill), matching the
-# player stats page: blue primary, aqua secondary, muted ink for reference lines.
-LIGHT, DARK = ("#2a78d6", "#1baf7a"), ("#3987e5", "#199e70")
-MUTED_INK = "#898781"
-
-
-def series_hues() -> tuple[str, str]:
-    try:
-        return DARK if st.context.theme.type == "dark" else LIGHT
-    except AttributeError:
-        return LIGHT
 
 
 # Reads silver directly: season-level sums/averages of the cleaned staging
@@ -135,14 +124,27 @@ points_chart = (
         ],
     )
 )
-# Selective direct labels: only the five biggest over/under-achievers.
+# Selective direct labels: only the five biggest over/under-achievers, haloed
+# and pushed away from the diagonal so they never collide with the point cloud.
 outliers = teams.reindex(teams["points_minus_xpts"].abs().nlargest(5).index)
-team_labels = (
-    alt.Chart(outliers)
-    .mark_text(align="left", dx=8, dy=-5)
-    .encode(x="expected_points:Q", y="points:Q", text="team_name:N")
+halo, ink = text_halo(), text_ink()
+label_layers = []
+for side, dy in (
+    (outliers["points_minus_xpts"] >= 0, -10),
+    (outliers["points_minus_xpts"] < 0, 14),
+):
+    enc = {"x": "expected_points:Q", "y": "points:Q", "text": "team_name:N"}
+    label_layers.append(
+        alt.Chart(outliers[side])
+        .mark_text(align="left", dx=8, dy=dy, stroke=halo, strokeWidth=4)
+        .encode(**enc)
+    )
+    label_layers.append(
+        alt.Chart(outliers[side]).mark_text(align="left", dx=8, dy=dy, color=ink).encode(**enc)
+    )
+st.altair_chart(
+    alt.layer(diagonal, points_chart, *label_layers).properties(height=420), width="stretch"
 )
-st.altair_chart((diagonal + points_chart + team_labels).properties(height=420), width="stretch")
 st.caption("Above the dashed line: winning more points than chance quality earns.")
 
 st.subheader("Finishing: goals minus xG")

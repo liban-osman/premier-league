@@ -15,6 +15,9 @@ select
     try_cast(t ->> 'id' as integer) as team_id,
     t ->> 'name' as team_name,
     t ->> 'short_name' as team_short_name,
+    -- global asset id (stable across seasons, unlike team_id which is just
+    -- alphabetical rank): resources.premierleague.com badges are keyed on it
+    try_cast(t ->> 'code' as integer) as team_code,
 
     try_cast(t ->> 'strength' as integer) as strength,
     try_cast(t ->> 'strength_overall_home' as integer) as strength_overall_home,

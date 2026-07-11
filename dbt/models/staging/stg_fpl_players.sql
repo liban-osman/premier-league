@@ -16,6 +16,9 @@ select
     e ->> 'first_name' as first_name,
     e ->> 'second_name' as second_name,
     e ->> 'web_name' as web_name,
+    -- global asset id (stable across seasons, unlike player_id which resets):
+    -- resources.premierleague.com player photos are keyed on it
+    try_cast(e ->> 'code' as integer) as player_code,
     try_cast(e ->> 'team' as integer) as team_id,
     try_cast(e ->> 'element_type' as integer) as position_id,
 

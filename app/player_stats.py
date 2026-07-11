@@ -2,21 +2,9 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
+from ui import MUTED_INK, photo_url, series_hues, text_halo, text_ink
 
 st.title("Player Stats — season so far")
-
-# Hues from the validated reference palette (dataviz skill): blue for the
-# primary sequential context, aqua for the second, each with a dark-surface
-# step. Muted ink for reference lines.
-LIGHT, DARK = ("#2a78d6", "#1baf7a"), ("#3987e5", "#199e70")
-MUTED_INK = "#898781"
-
-
-def series_hues() -> tuple[str, str]:
-    try:
-        return DARK if st.context.theme.type == "dark" else LIGHT
-    except AttributeError:
-        return LIGHT
 
 
 # Reads silver directly: these are pure projections of the cleaned staging
@@ -27,7 +15,7 @@ def load_players():
     df = conn.execute(
         """
         select
-            p.load_date, p.web_name, t.team_name, pos.position_short_name,
+            p.load_date, p.web_name, p.player_code, t.team_name, pos.position_short_name,
             p.goals_scored, p.assists, p.expected_goals, p.expected_assists,
             p.minutes, p.total_points, p.clean_sheets
         from silver.stg_fpl_players p
@@ -38,23 +26,36 @@ def load_players():
         """
     ).df()
     conn.close()
+    df["photo"] = df["player_code"].map(photo_url)
     return df
 
 
-def leaderboard(df: pd.DataFrame, value_col: str, label: str, hue: str) -> alt.Chart:
-    top = df.nlargest(10, value_col)
-    base = alt.Chart(top).encode(
-        y=alt.Y("web_name:N", sort="-x", title=None),
-        x=alt.X(f"{value_col}:Q", axis=None),
-        tooltip=[
-            alt.Tooltip("web_name", title="Player"),
-            alt.Tooltip("team_name", title="Team"),
-            alt.Tooltip(value_col, title=label),
-        ],
+def leaderboard(container, df: pd.DataFrame, value_col: str, label: str) -> None:
+    top = df.nlargest(10, value_col)[["photo", "web_name", "team_name", value_col]]
+    container.dataframe(
+        top,
+        hide_index=True,
+        column_config={
+            "photo": st.column_config.ImageColumn("", width="small"),
+            "web_name": "Player",
+            "team_name": "Team",
+            value_col: st.column_config.ProgressColumn(
+                label, format="%d", min_value=0, max_value=max(int(top[value_col].max()), 1)
+            ),
+        },
     )
-    bars = base.mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4, color=hue)
-    labels = base.mark_text(align="left", dx=4).encode(text=f"{value_col}:Q")
-    return (bars + labels).properties(height=300)
+
+
+def halo_labels(points: pd.DataFrame, dy: int, halo: str, ink: str) -> list[alt.Chart]:
+    """A label pair per point: a surface-colored stroke underneath, ink on top."""
+    enc = {"x": "expected_goals:Q", "y": "goals_scored:Q", "text": "web_name:N"}
+    under = (
+        alt.Chart(points)
+        .mark_text(align="left", dx=8, dy=dy, stroke=halo, strokeWidth=4)
+        .encode(**enc)
+    )
+    over = alt.Chart(points).mark_text(align="left", dx=8, dy=dy, color=ink).encode(**enc)
+    return [under, over]
 
 
 df = load_players()
@@ -64,14 +65,31 @@ st.caption(f"Snapshot: {df['load_date'].iloc[0]:%Y-%m-%d} — 2025/26 season tot
 
 left, right = st.columns(2)
 left.subheader("Top scorers")
-left.altair_chart(leaderboard(df, "goals_scored", "Goals", blue), width="stretch")
+leaderboard(left, df, "goals_scored", "Goals")
 right.subheader("Top assists")
-right.altair_chart(leaderboard(df, "assists", "Assists", aqua), width="stretch")
+leaderboard(right, df, "assists", "Assists")
 
 st.subheader("Goals vs expected goals (xG)")
-min_minutes = st.slider("Minimum minutes played", 0, int(df["minutes"].max()), 900, step=90)
+controls = st.columns([1.4, 2, 2.6], vertical_alignment="bottom")
+positions = controls[0].pills("Position", ["DEF", "MID", "FWD"], selection_mode="multi")
+min_minutes = controls[1].slider(
+    "Minimum minutes played", 0, int(df["minutes"].max()), 900, step=90
+)
+
 shooters = df[(df["minutes"] >= min_minutes) & (df["expected_goals"] > 0)].copy()
-shooters["xg_delta"] = shooters["goals_scored"] - shooters["expected_goals"]
+if positions:
+    shooters = shooters[shooters["position_short_name"].isin(positions)]
+shooters["xg_delta"] = (shooters["goals_scored"] - shooters["expected_goals"]).round(2)
+
+# Labels are opt-in and haloed instead of stamped on the five busiest points --
+# the old fixed labels collided into an unreadable clump around the diagonal.
+default_labels = shooters.reindex(shooters["xg_delta"].abs().nlargest(5).index)["web_name"].tolist()
+labelled_names = controls[2].multiselect(
+    "Label players",
+    sorted(df.loc[df["expected_goals"] > 0, "web_name"].unique().tolist()),
+    default=default_labels,
+)
+labelled = shooters[shooters["web_name"].isin(labelled_names)]
 
 axis_max = float(max(shooters["expected_goals"].max(), shooters["goals_scored"].max())) + 1
 diagonal = (
@@ -79,9 +97,10 @@ diagonal = (
     .mark_line(strokeDash=[4, 4], color=MUTED_INK)
     .encode(x="v:Q", y="v:Q")
 )
+pick = alt.selection_point(name="point_sel", fields=["web_name"], on="click", empty=False)
 points = (
     alt.Chart(shooters)
-    .mark_circle(size=70, color=blue, opacity=0.7)
+    .mark_circle(size=70, color=blue, opacity=0.6)
     .encode(
         x=alt.X("expected_goals:Q", title="Expected goals (xG)"),
         y=alt.Y("goals_scored:Q", title="Goals"),
@@ -92,19 +111,78 @@ points = (
             alt.Tooltip("expected_goals", title="xG"),
         ],
     )
+    .add_params(pick)
 )
-# Selective direct labels: only the five biggest over/under-performers.
-outliers = shooters.reindex(shooters["xg_delta"].abs().nlargest(5).index)
-labels = (
-    alt.Chart(outliers)
-    .mark_text(align="left", dx=7, dy=-5)
-    .encode(x="expected_goals:Q", y="goals_scored:Q", text="web_name:N")
+highlight = (
+    alt.Chart(labelled)
+    .mark_circle(size=130, color=aqua, opacity=0.95)
+    .encode(x="expected_goals:Q", y="goals_scored:Q")
 )
-st.altair_chart((diagonal + points + labels).properties(height=420), width="stretch")
+# Over-performers sit above the diagonal, so their labels go up and away from
+# it; under-performers get labels pushed down. Halo + ink keeps both readable.
+halo, ink = text_halo(), text_ink()
+chart = alt.layer(
+    diagonal,
+    points,
+    highlight,
+    *halo_labels(labelled[labelled["xg_delta"] >= 0], dy=-10, halo=halo, ink=ink),
+    *halo_labels(labelled[labelled["xg_delta"] < 0], dy=14, halo=halo, ink=ink),
+).properties(height=460)
+event = st.altair_chart(chart, width="stretch", on_select="rerun", key="xg_scatter")
 st.caption(
-    "Above the dashed line: scoring more than chance quality suggests. "
-    "Below: underperforming their chances."
+    "Above the dashed line: scoring more than chance quality suggests. Below: "
+    "underperforming their chances. Click any point for the player's card; add "
+    "names to *Label players* to pin more labels."
 )
 
+picked = event.selection.point_sel if event.selection else []
+if picked:
+    hits = df[df["web_name"] == picked[0]["web_name"]]
+    if not hits.empty:
+        p = hits.iloc[0]
+        with st.container(border=True):
+            img_col, info_col = st.columns([1, 5], vertical_alignment="center")
+            img_col.image(photo_url(p["player_code"], size="250x250"), width=110)
+            info_col.markdown(
+                f"**{p['web_name']}** — {p['team_name']} · {p['position_short_name']} · "
+                f"{int(p['minutes'])} minutes"
+            )
+            m = info_col.columns(5)
+            m[0].metric("Goals", int(p["goals_scored"]))
+            m[1].metric("xG", f"{p['expected_goals']:.1f}")
+            m[2].metric("Assists", int(p["assists"]))
+            m[3].metric("xA", f"{p['expected_assists']:.1f}")
+            m[4].metric("FPL points", int(p["total_points"]))
+
 with st.expander("Full table"):
-    st.dataframe(df.drop(columns=["load_date"]), hide_index=True)
+    st.dataframe(
+        df[
+            [
+                "photo",
+                "web_name",
+                "team_name",
+                "position_short_name",
+                "minutes",
+                "goals_scored",
+                "expected_goals",
+                "assists",
+                "expected_assists",
+                "clean_sheets",
+                "total_points",
+            ]
+        ].sort_values("total_points", ascending=False),
+        hide_index=True,
+        column_config={
+            "photo": st.column_config.ImageColumn("", width="small"),
+            "web_name": "Player",
+            "team_name": "Team",
+            "position_short_name": "Pos",
+            "minutes": "Mins",
+            "goals_scored": "Goals",
+            "expected_goals": st.column_config.NumberColumn("xG", format="%.1f"),
+            "assists": "Assists",
+            "expected_assists": st.column_config.NumberColumn("xA", format="%.1f"),
+            "clean_sheets": "CS",
+            "total_points": "Pts",
+        },
+    )

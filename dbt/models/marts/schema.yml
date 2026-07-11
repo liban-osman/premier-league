@@ -39,6 +39,11 @@ models:
       - name: position
         data_tests:
           - not_null
+      - name: form_last_5
+        description: >
+          Last five results as a 'W D L' string, oldest to newest (rightmost
+          letter = most recent match). Null only when a team has no finished
+          fixtures in the snapshot.
 
   - name: mart_transfer_decision
     description: >
