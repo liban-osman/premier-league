@@ -62,6 +62,6 @@ These entries supersede rather than edit the originals above, per this log's own
 
 - **FPL ↔ WhoScored *team* mapping.** #23 resolves players; team ids stay unmapped until a
   mart actually needs to join at team grain (name-based mapping is trivial by comparison).
-- **Understat on the app.** Ingestion + staging + mapping land first; xG-powered league pages
-  (and feeding real xG into the decision layer) are a follow-up consumption step. Attribution
-  ("xG model: Understat") goes on any page that renders it.
+- **Understat in the decision layer.** The xG analytics *page* shipped 2026-07-11 (with
+  on-page attribution); feeding real xG into `mart_transfer_decision` as a signal is still
+  open, gated on the 2025/26 seasons aligning once the new FPL season starts.

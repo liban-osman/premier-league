@@ -32,7 +32,7 @@ flowchart LR
         RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models<br/>+ player_id_map (FPL <-> WhoScored)"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
     end
 
-    Consumption["Streamlit Community Cloud<br/>transfer decisions · league table · player stats"]
+    Consumption["Streamlit Community Cloud<br/>transfer decisions · league table<br/>player stats · xG analytics"]
 
     FPL --> FPL_TASK --> S3_FPL --> RAW
     WS --> WS_TASK --> S3_WS --> RAW
@@ -102,7 +102,7 @@ different automation stories:
 instead of local-only `streamlit run` — the actual fix for "usable by someone who isn't me."
 Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK_TOKEN`
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
-on every push to `main`. Three pages behind `st.navigation`:
+on every push to `main`. Four pages behind `st.navigation`:
 
 - **Transfer decisions** — the headline view over `mart_transfer_decision`, filterable by
   position and recommendation.
@@ -110,6 +110,9 @@ on every push to `main`. Three pages behind `st.navigation`:
 - **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter; reads
   `silver` directly, deliberately: these are pure projections with no business logic, and a
   pass-through mart would add a copy, not value.
+- **xG analytics** — Understat-powered, season-selectable (2024/25 and 2025/26): team xG
+  table with xPTS and PPDA, points-vs-xPTS scatter, finishing over/under-performance.
+  Same silver-read policy; attributes the xG model to Understat on-page.
 
 **WhoScored on the public app: heavy aggregates only.** The data is not-for-redistribution and
 a public app is redistribution — so raw events or per-match detail never render there (the old
