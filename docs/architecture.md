@@ -28,7 +28,7 @@ flowchart LR
 
     subgraph Warehouse["MotherDuck (DuckDB), via dbt"]
         direction TB
-        RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
+        RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models<br/>+ player_id_map (FPL <-> WhoScored)"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
     end
 
     Consumption["Streamlit Community Cloud<br/>transfer decisions · league table · player stats"]
@@ -66,8 +66,12 @@ different automation stories:
 - `raw` — loaded via DuckDB's native `read_json_auto('s3://...')` / httpfs support, no separate
   `COPY INTO` step needed the way Snowflake required.
 - `silver` = dbt **staging** models (views) — cleaned, typed: `stg_fpl_players` / `teams` /
-  `positions` (unnested from bootstrap) and `stg_fpl_fixtures`. WhoScored staging is still
-  pending (raw sources are declared in `sources.yml` only).
+  `positions` (unnested from bootstrap), `stg_fpl_fixtures`, and the WhoScored side:
+  `stg_whoscored_matches` / `events` / `players`, all read off the match-centre payload in
+  `raw.whoscored_events` (one row per match; the calendar export carries nothing extra and
+  stays unstaged). Silver also holds one **mapping** model materialized as a table:
+  `player_id_map`, the explicit FPL ↔ WhoScored join key — a ladder of deterministic
+  exact name-match rules (no fuzzy matching; 1:1 enforced by tests). See decision log #21–24.
 - `gold` = dbt **marts** models (tables):
   - five signal marts — form trend, price momentum, team fixture difficulty (rolling next-5
     FDR), value (points per £m ranked in position), availability risk;
@@ -103,11 +107,15 @@ permitted ceiling.
 
 ## Known open items
 
-- **FPL ↔ WhoScored join key.** Still unresolved, still deferred — no natural shared
-  player/team identifier between the two sources; will likely need an explicit mapping table.
-- **WhoScored staging models don't exist yet.** `whoscored_events` / `whoscored_matches` are
-  declared as raw sources in `sources.yml` but nothing in `silver` reads them — the second
-  half of Phase 4.
+- ~~**FPL ↔ WhoScored join key.**~~ Resolved 2026-07-11 for players: `player_id_map` maps
+  433 of 685 WhoScored players to FPL ids via deterministic name-match rules (decision log
+  #23; the unmatched rest are largely players with no 2025/26 FPL counterpart). Team-grain
+  mapping stays deferred until a mart needs it.
+- ~~**WhoScored staging models don't exist yet.**~~ Resolved 2026-07-11:
+  `stg_whoscored_matches` / `events` / `players` are live, with an internal-consistency
+  test (goal events = ftScore goals). Note the export is the **2024/25** season — one season
+  behind the FPL snapshots — so cross-source joins are cross-season until a 2025/26 export
+  is uploaded.
 - **Understat is reserved, not wired.** The `understat/` S3 prefix exists; no script, DAG, or
   dbt source touches it yet. Integrating it is its own design-first step (decision log entry +
   diagram update before code).

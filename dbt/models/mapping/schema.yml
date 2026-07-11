@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: player_id_map
+    description: >
+      One row per confidently matched player -- the explicit FPL <-> WhoScored
+      join key (the two sources share no natural identifier). Built by a
+      deterministic exact-match rule ladder over normalized names; see the
+      model header for why fuzzy matching is deliberately excluded. The unique
+      tests on both id columns are the 1:1 contract every cross-source join
+      relies on.
+    columns:
+      - name: player_ws_id
+        data_tests:
+          - not_null
+          - unique
+      - name: fpl_player_id
+        data_tests:
+          - not_null
+          - unique
+      - name: match_rule
+        description: Which ladder rule produced the match -- kept for debuggability.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["full_name", "short_name", "web_name"]

@@ -16,6 +16,12 @@ sources:
           per fixture per load_date. Includes team_h_difficulty/team_a_difficulty
           (FPL's own 1-5 FDR rating) directly -- no need to derive it ourselves.
       - name: whoscored_events
-        description: WhoScored per-match event export, across all load dates.
+        description: >
+          WhoScored match-centre export: one row per match carrying the event
+          array, home/away team structs, and the playerIdNameDictionary.
+          Feeds all three stg_whoscored_* models.
       - name: whoscored_matches
-        description: WhoScored per-match summary export, across all load dates.
+        description: >
+          WhoScored fixture-calendar export (paged match lists). Deliberately
+          unstaged: everything downstream needs already sits on the
+          whoscored_events payload top level.

@@ -40,10 +40,19 @@ These entries supersede rather than edit the originals above, per this log's own
 | 19 | When a page may read `silver` directly | **Allowed for pure projections** (player stats page); marts reserved for business logic | A mart that is a `select *` pass-through of staging adds a copy to maintain, not value. The league table and transfer score encode real logic and get marts; leaderboards that only select/join/sort do not. |
 | 20 | League pages build order | **FPL-derived pages first**, before WhoScored staging or Understat ingestion | Everything needed (goals, assists, xG, fixtures) already lands daily from the FPL API — shippable immediately with zero new ingestion. WhoScored pages depend on the licensing ceiling (#18); Understat is its own design-first integration. |
 
+## Phase 4, second half: WhoScored staging + player mapping (2026-07-11)
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 21 | WhoScored staging source | **All three staging models read `raw.whoscored_events`**; the `whoscored_matches` calendar export stays unstaged | Probing the raw tables showed the "events" export is one whole match-centre payload per match: match facts (teams, ftScore, date) on its top level, the event array, and a `playerIdNameDictionary` all in one place. The calendar export carries nothing extra we need — staging it would be a copy, not value (same reasoning as #19). |
+| 22 | WhoScored season labelling | **Derive `season_start_year` from each match's own date**, not the S3 partition label | The export sits under `season=2025` in S3 but its matches run 2024-08 → 2025-05 — it is the **2024/25** season, and the hand-set label doesn't follow the FPL convention (start year). The match date is ground truth the payload carries itself; same "derive, don't hardcode" fix as the FPL SEASON bug. |
+| 23 | FPL ↔ WhoScored join key (resolves the deferred item) | **`player_id_map` dbt model: a ladder of deterministic, exact name-match rules** — no fuzzy matching, ambiguous candidates dropped | Rules: (1) normalized full name, 392; (2) FPL first+last name token, +22 — catches official long names like "Bruno Miguel Borges Fernandes"; (3) FPL web_name, +19. Total 433 of 685 (~63%), 1:1 enforced by `unique` tests on both id columns. Fuzzy matching is excluded on purpose: a false positive silently corrupts every downstream join, while an unmatched player is visible and countable. The unmatched ~37% is largely *correct* — the WhoScored export (2024/25) and FPL snapshots (2025/26) are different seasons, so relegated clubs' players and departures have no counterpart. |
+| 24 | Event grain honesty | **`stg_whoscored_events` is one row per exported event element** — no uniqueness test at this grain | The export itself contains duplicated event ids (27 pairs in 579k; neither `id` nor `(match_id, eventId)` is clean). Claiming a key the source can't honor would mean either a red test or silent deduping; instead the grain is documented as-is and integrity is guarded by a stronger invariant: goal events in the stream must equal goals parsed from ftScore (they do, 1,115 = 1,115 — `assert_whoscored_goal_events_match_scores`). |
+
 ## Deferred (still open)
 
-- **FPL ↔ WhoScored join key.** No natural shared player/team identifier between the two
-  sources. Will likely need an explicit mapping table. Deferred to Phase 4 schema design.
 - **Understat integration.** Third source with a real API (xG depth for the league pages and
   the decision layer). S3 prefix reserved; needs its own decision-log entry + architecture
   update before code, per the design-first rule.
+- **FPL ↔ WhoScored *team* mapping.** #23 resolves players; team ids stay unmapped until a
+  mart actually needs to join at team grain (name-based mapping is trivial by comparison).

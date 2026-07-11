@@ -21,6 +21,12 @@ models:
     staging:
       +materialized: view
       +schema: silver
+    # cross-source conformance (e.g. the FPL <-> WhoScored player id map):
+    # lives in silver alongside staging, but materialized as a table because
+    # marts join through it repeatedly
+    mapping:
+      +materialized: table
+      +schema: silver
     marts:
       +materialized: table
       +schema: gold

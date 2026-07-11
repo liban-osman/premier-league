@@ -41,3 +41,51 @@ models:
         data_tests:
           - not_null
           - unique
+
+  - name: stg_whoscored_matches
+    description: >
+      One row per match -- match-level facts off the top of each WhoScored
+      match-centre payload. season_start_year is derived from the match date,
+      not the hand-set S3 partition label.
+    columns:
+      - name: match_id
+        data_tests:
+          - not_null
+          - unique
+      - name: home_goals
+        description: "Parsed from the ftScore string; not_null guards that parse."
+        data_tests:
+          - not_null
+      - name: away_goals
+        data_tests:
+          - not_null
+
+  - name: stg_whoscored_events
+    description: >
+      One row per exported event element (~580k per season); the export
+      contains a few duplicated event ids, so no uniqueness is claimed at
+      this grain. Qualifiers stay as an opaque JSON blob.
+    columns:
+      - name: match_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_whoscored_matches')
+                field: match_id
+      - name: event_type
+        data_tests:
+          - not_null
+
+  - name: stg_whoscored_players
+    description: >
+      One row per WhoScored player id with the most frequent name spelling --
+      the WhoScored side of player_id_map.
+    columns:
+      - name: player_ws_id
+        data_tests:
+          - not_null
+          - unique
+      - name: player_name
+        data_tests:
+          - not_null
