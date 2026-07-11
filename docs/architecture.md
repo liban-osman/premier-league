@@ -144,7 +144,6 @@ permitted ceiling.
   season from the API payload (first gameweek deadline year), so the partition label rolls
   over automatically on flip day. `SEASON` env var remains as a manual-backfill override and
   still labels the WhoScored upload scripts.
-- **Unused app dependencies.** `mplsoccer` / `matplotlib` remain in `pyproject.toml` after the
-  pass-map page was removed; dropping them requires regenerating `uv.lock`, and `uv` isn't
-  installed on the dev machine. Cleanup deferred, deliberately, to avoid breaking the
-  workflow's `uv sync --locked`.
+- ~~**Unused app dependencies.**~~ Resolved 2026-07-11: `uv` installed locally, `mplsoccer` /
+  `matplotlib` dropped from `pyproject.toml`, and `uv.lock` regenerated (purely subtractive —
+  10 packages removed, no version changes), keeping the workflow's `uv sync --locked` intact.
