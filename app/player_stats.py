@@ -2,7 +2,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import MUTED_INK, photo_url, series_hues, text_halo, text_ink
+from ui import MUTED_INK, badge_url, photo_url, series_hues, text_halo, text_ink
 
 st.title("Player Stats — season so far")
 
@@ -15,7 +15,8 @@ def load_players():
     df = conn.execute(
         """
         select
-            p.load_date, p.web_name, p.player_code, t.team_name, pos.position_short_name,
+            p.load_date, p.web_name, p.player_code, t.team_name, t.team_code,
+            pos.position_short_name,
             p.goals_scored, p.assists, p.expected_goals, p.expected_assists,
             p.minutes, p.total_points, p.clean_sheets
         from silver.stg_fpl_players p
@@ -27,16 +28,21 @@ def load_players():
     ).df()
     conn.close()
     df["photo"] = df["player_code"].map(photo_url)
+    # The badge rides alongside the photo everywhere a photo appears: the PL's
+    # official headshot CDN can lag a real transfer by months (kit stays the
+    # old club's), but the badge is keyed on the club itself so it's never stale.
+    df["badge"] = df["team_code"].map(badge_url)
     return df
 
 
 def leaderboard(container, df: pd.DataFrame, value_col: str, label: str) -> None:
-    top = df.nlargest(10, value_col)[["photo", "web_name", "team_name", value_col]]
+    top = df.nlargest(10, value_col)[["photo", "badge", "web_name", "team_name", value_col]]
     container.dataframe(
         top,
         hide_index=True,
         column_config={
             "photo": st.column_config.ImageColumn("", width="small"),
+            "badge": st.column_config.ImageColumn("", width="small"),
             "web_name": "Player",
             "team_name": "Team",
             value_col: st.column_config.ProgressColumn(
@@ -141,8 +147,10 @@ if picked:
     if not hits.empty:
         p = hits.iloc[0]
         with st.container(border=True):
-            img_col, info_col = st.columns([1, 5], vertical_alignment="center")
+            img_col, badge_col, info_col = st.columns([1, 0.4, 5], vertical_alignment="center")
             img_col.image(photo_url(p["player_code"], size="250x250"), width=110)
+            if pd.notna(p["badge"]):
+                badge_col.image(p["badge"], width=32)
             info_col.markdown(
                 f"**{p['web_name']}** — {p['team_name']} · {p['position_short_name']} · "
                 f"{int(p['minutes'])} minutes"
@@ -159,6 +167,7 @@ with st.expander("Full table"):
         df[
             [
                 "photo",
+                "badge",
                 "web_name",
                 "team_name",
                 "position_short_name",
@@ -174,6 +183,7 @@ with st.expander("Full table"):
         hide_index=True,
         column_config={
             "photo": st.column_config.ImageColumn("", width="small"),
+            "badge": st.column_config.ImageColumn("", width="small"),
             "web_name": "Player",
             "team_name": "Team",
             "position_short_name": "Pos",

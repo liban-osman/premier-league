@@ -2,7 +2,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import photo_url, series_hues
+from ui import badge_url, photo_url, series_hues
 
 st.title("FPL Transfer Decisions")
 st.caption(
@@ -22,23 +22,30 @@ VERDICT = {
 
 
 # Cached for an hour: the mart only changes once a day when the snapshot lands.
-# player_code (the photo asset id) joins in from staging rather than widening
-# the mart -- it's a display attribute, not a decision signal.
+# player_code (the photo asset id) and team_code (the badge asset id) join in
+# from staging rather than widening the mart -- display attributes, not
+# decision signals.
 @st.cache_data(ttl=3600)
 def load_latest_snapshot():
     conn = get_conn()
     df = conn.execute(
         """
-        select d.*, p.player_code
+        select d.*, p.player_code, t.team_code
         from gold.mart_transfer_decision d
         left join silver.stg_fpl_players p
             on d.load_date = p.load_date and d.player_id = p.player_id
+        left join silver.stg_fpl_teams t
+            on d.load_date = t.load_date and d.team_id = t.team_id
         where d.load_date = (select max(load_date) from gold.mart_transfer_decision)
         order by d.transfer_score desc
         """
     ).df()
     conn.close()
     df["photo"] = df["player_code"].map(photo_url)
+    # The badge rides alongside the photo everywhere a photo appears: the PL's
+    # official headshot CDN can lag a real transfer by months (kit stays the
+    # old club's), but the badge is keyed on the club itself so it's never stale.
+    df["badge"] = df["team_code"].map(badge_url)
     df["verdict"] = df["recommendation"].map(VERDICT)
     return df
 
@@ -54,8 +61,10 @@ for tile, pos in zip(tiles, ["GKP", "DEF", "MID", "FWD"]):
         continue
     pick = pool.iloc[0]  # df is already sorted by transfer_score desc
     with tile.container(border=True):
-        face, facts = st.columns([1, 2], vertical_alignment="center")
+        face, badge_col, facts = st.columns([1, 0.4, 1.6], vertical_alignment="center")
         face.image(pick["photo"], width=56)
+        if pd.notna(pick["badge"]):
+            badge_col.image(pick["badge"], width=24)
         facts.markdown(f"**{pick['web_name']}**")
         facts.caption(
             f"{pick['team_name']}  \nscore {pick['transfer_score']:.0f} · £{pick['price_m']}m"
@@ -82,6 +91,7 @@ table = st.dataframe(
     filtered[
         [
             "photo",
+            "badge",
             "web_name",
             "team_name",
             "position_short_name",
@@ -101,6 +111,7 @@ table = st.dataframe(
     selection_mode="single-row",
     column_config={
         "photo": st.column_config.ImageColumn("", width="small"),
+        "badge": st.column_config.ImageColumn("", width="small"),
         "web_name": "Player",
         "team_name": "Team",
         "position_short_name": "Pos",
@@ -126,8 +137,12 @@ st.caption("Click a row to see why the score is what it is.")
 if table.selection.rows:
     player = filtered.iloc[table.selection.rows[0]]
     st.divider()
-    photo_col, facts_col, chart_col = st.columns([1, 2, 3], vertical_alignment="center")
+    photo_col, badge_col, facts_col, chart_col = st.columns(
+        [1, 0.4, 1.6, 3], vertical_alignment="center"
+    )
     photo_col.image(photo_url(player["player_code"], size="250x250"), width=150)
+    if pd.notna(player["badge"]):
+        badge_col.image(player["badge"], width=36)
     facts_col.markdown(f"### {player['web_name']}")
     facts_col.markdown(
         f"{player['team_name']} · {player['position_short_name']} · £{player['price_m']}m"
