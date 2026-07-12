@@ -105,9 +105,12 @@ Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
 on every push to `main`. Four pages behind `st.navigation`:
 
-- **Transfer decisions** — the headline view over `mart_transfer_decision`: top pick per
-  position, position/recommendation/search filters, and a click-a-row card showing the four
-  weighted signals behind the score.
+- **Transfer decisions** — the headline view over `mart_transfer_decision`, led by two
+  actionable-highlight sections: **movers since last snapshot** (high-ownership players whose
+  recommendation bucket flipped day-over-day, split into consider-selling / consider-buying)
+  and **budget picks** (best `transfer_score` under a user-set price cutoff), then top pick per
+  position. The full sortable/filterable table and detailed methodology are demoted into a
+  collapsed section, with a click-a-row card showing the five weighted signals behind the score.
 - **League table** — reads `mart_league_table`: badges, last-5 form guide, and
   qualification/relegation zone tints.
 - **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter with

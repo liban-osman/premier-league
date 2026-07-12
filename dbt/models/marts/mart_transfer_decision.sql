@@ -1,9 +1,12 @@
 -- The decision layer: one row per (load_date, player_id) with a 0-100
--- transfer_score and a recommendation bucket. Each signal is converted to a
--- percent_rank within (load_date, position) so "good" always means "relative
--- to the players you could actually swap them for", then combined with
--- explicit weights. Availability is a hard gate, not a weighted input: an
--- injured player is not 15% less attractive, they're undroppable-in.
+-- transfer_score and a recommendation bucket, plus each player's own
+-- previous snapshot for both so a page can surface who just changed
+-- (recommendation_trend), not just today's ranking. Each signal is
+-- converted to a percent_rank within (load_date, position) so "good"
+-- always means "relative to the players you could actually swap them
+-- for", then combined with explicit weights. Availability is a hard
+-- gate, not a weighted input: an injured player is not 15% less
+-- attractive, they're undroppable-in.
 --
 -- Weights (a deliberate, tunable design choice, not a fitted model):
 --   30% value (points per GBP m), 25% form, 20% underlying threat
@@ -130,6 +133,55 @@ weighted as (
             1
         ) as transfer_score
     from scored
+),
+
+-- recommendation, hoisted out of the terminal select into its own CTE so
+-- lag() below has a named column to look back over.
+recommended as (
+    select
+        *,
+        case
+            when availability_risk = 'high_risk' then 'drop'
+            when availability_risk = 'doubtful' and transfer_score >= 40 then 'monitor'
+            when transfer_score >= 75 then 'transfer_in'
+            when transfer_score >= 40 then 'hold'
+            else 'monitor'
+        end as recommendation
+    from weighted
+),
+
+-- Ordinal mapped from the bucket name itself (not a second copy of the
+-- threshold conditions above), so "upgraded"/"downgraded" is a real order
+-- comparison without risking the two definitions drifting apart if the
+-- thresholds above ever change.
+ranked as (
+    select
+        *,
+        case recommendation
+            when 'drop' then 0
+            when 'monitor' then 1
+            when 'hold' then 2
+            when 'transfer_in' then 3
+        end as recommendation_rank
+    from recommended
+),
+
+-- Same lag()-over-player_id idiom as mart_player_price_momentum /
+-- mart_player_form_trend, applied to this mart's own derived score and
+-- recommendation instead of a raw staged column.
+with_prev as (
+    select
+        *,
+        lag(transfer_score) over (
+            partition by player_id order by load_date
+        ) as prev_transfer_score,
+        lag(recommendation) over (
+            partition by player_id order by load_date
+        ) as prev_recommendation,
+        lag(recommendation_rank) over (
+            partition by player_id order by load_date
+        ) as prev_recommendation_rank
+    from ranked
 )
 
 select
@@ -157,12 +209,15 @@ select
     round(fixture_pctl, 2) as fixture_pctl,
     round(momentum_pctl, 2) as momentum_pctl,
     transfer_score,
+    recommendation,
+    prev_transfer_score,
+    round(transfer_score - prev_transfer_score, 1) as score_change_since_prev_snapshot,
+    prev_recommendation,
     case
-        when availability_risk = 'high_risk' then 'drop'
-        when availability_risk = 'doubtful' and transfer_score >= 40 then 'monitor'
-        when transfer_score >= 75 then 'transfer_in'
-        when transfer_score >= 40 then 'hold'
-        else 'monitor'
-    end as recommendation
-from weighted
+        when prev_recommendation is null then 'no_prior_snapshot'
+        when recommendation_rank = prev_recommendation_rank then 'unchanged'
+        when recommendation_rank > prev_recommendation_rank then 'upgraded'
+        else 'downgraded'
+    end as recommendation_trend
+from with_prev
 order by load_date, transfer_score desc

@@ -51,7 +51,8 @@ models:
       transfer_score (weighted percentile of value, form, underlying threat
       via Understat npxG+xA per 90, fixture ease, and transfer momentum
       within position) and a recommendation bucket, with availability as a
-      hard gate.
+      hard gate. Carries each player's own previous snapshot alongside the
+      current one, so recommendation_trend flags who just changed.
     columns:
       - name: player_id
         data_tests:
@@ -68,3 +69,22 @@ models:
           - accepted_values:
               arguments:
                 values: ['transfer_in', 'hold', 'monitor', 'drop']
+      - name: prev_recommendation
+        description: >
+          recommendation from this player's previous snapshot. Null only on
+          a player's first-ever appearance in the mart -- no not_null test
+          for exactly that reason, since dbt build runs in the live daily
+          pipeline and would go red on every newly-added player.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['transfer_in', 'hold', 'monitor', 'drop']
+      - name: recommendation_trend
+        description: >
+          upgraded / downgraded / unchanged / no_prior_snapshot, comparing
+          recommendation to prev_recommendation. Always computed, never null.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['upgraded', 'downgraded', 'unchanged', 'no_prior_snapshot']
