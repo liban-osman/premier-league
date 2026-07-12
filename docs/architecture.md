@@ -87,8 +87,9 @@ different automation stories:
   - five signal marts — form trend, price momentum, team fixture difficulty (rolling next-5
     FDR), value (points per £m ranked in position), availability risk;
   - `mart_transfer_decision` — the decision layer: each signal becomes a `percent_rank`
-    within (load_date, position), weighted 35/30/20/15 into a 0–100 `transfer_score`,
-    with availability as a hard gate (high-risk → drop) rather than a weighted input;
+    within (load_date, position), weighted 30/25/20/15/10 (value / form / Understat
+    underlying threat / fixtures / momentum) into a 0–100 `transfer_score`, with
+    availability as a hard gate (high-risk → drop) rather than a weighted input;
   - `mart_league_table` — standings derived from finished fixture results (FPL zeroes the
     bootstrap team records in preseason snapshots), guarded by a goals-balance invariant test.
 - dbt vocabulary maps directly onto the raw/silver/gold naming used everywhere else in this

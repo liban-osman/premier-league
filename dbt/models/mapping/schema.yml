@@ -43,6 +43,13 @@ models:
         data_tests:
           - not_null
           - unique
+      - name: fpl_player_code
+        description: >
+          FPL's stable global asset id -- the cross-season join key, since
+          player_id resets every season.
+        data_tests:
+          - not_null
+          - unique
       - name: match_rule
         data_tests:
           - not_null

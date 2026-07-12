@@ -7,8 +7,9 @@ from ui import photo_url, series_hues
 st.title("FPL Transfer Decisions")
 st.caption(
     "Daily FPL snapshots → MotherDuck → dbt. transfer_score is a weighted percentile "
-    "within position: 35% value (points per £m), 30% form, 20% fixture ease (next 5), "
-    "15% transfer momentum. Availability is a hard gate, not a weighted input."
+    "within position: 30% value (points per £m), 25% form, 20% underlying threat "
+    "(Understat npxG+xA per 90), 15% fixture ease (next 5), 10% transfer momentum. "
+    "Availability is a hard gate, not a weighted input."
 )
 
 # Status markers ship as icon + label together, never color alone.
@@ -141,14 +142,21 @@ if table.selection.rows:
     if pd.notna(player["news"]) and player["news"]:
         facts_col.warning(player["news"])
 
-    # The four weighted signals behind the score, each a percentile within
+    # The five weighted signals behind the score, each a percentile within
     # position. A missing signal shows at 0.5 -- the same neutral the mart uses.
     signals = pd.DataFrame(
         {
-            "signal": ["Value (35%)", "Form (30%)", "Fixtures (20%)", "Momentum (15%)"],
+            "signal": [
+                "Value (30%)",
+                "Form (25%)",
+                "Underlying xG (20%)",
+                "Fixtures (15%)",
+                "Momentum (10%)",
+            ],
             "pctl": [
                 player["value_pctl"],
                 player["form_pctl"],
+                player["underlying_pctl"],
                 player["fixture_pctl"],
                 player["momentum_pctl"],
             ],
@@ -172,6 +180,6 @@ if table.selection.rows:
                 alt.Tooltip("pctl", title="Percentile", format=".0%"),
             ],
         )
-        .properties(height=150)
+        .properties(height=180)
     )
     chart_col.altair_chart(breakdown, width="stretch")

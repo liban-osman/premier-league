@@ -48,9 +48,10 @@ models:
   - name: mart_transfer_decision
     description: >
       The decision layer: one row per (load_date, player_id) with a 0-100
-      transfer_score (weighted percentile of value, form, fixture ease, and
-      transfer momentum within position) and a recommendation bucket, with
-      availability as a hard gate.
+      transfer_score (weighted percentile of value, form, underlying threat
+      via Understat npxG+xA per 90, fixture ease, and transfer momentum
+      within position) and a recommendation bucket, with availability as a
+      hard gate.
     columns:
       - name: player_id
         data_tests:

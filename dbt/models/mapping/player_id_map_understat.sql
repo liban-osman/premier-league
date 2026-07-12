@@ -122,13 +122,26 @@ overrides as (
         'manual' as match_rule
     from {{ ref('seed_player_map_overrides_understat') }} o
     inner join fpl on o.fpl_player_code = fpl.player_code
-)
+),
 
 -- Overrides win: a ladder row that conflicts with an override on either id
 -- is dropped, so the unique (1:1) tests keep holding by construction.
-select player_ud_id, fpl_player_id, match_rule from overrides
-union all
-select player_ud_id, fpl_player_id, match_rule
-from ladder
-where player_ud_id not in (select player_ud_id from overrides)
-  and fpl_player_id not in (select fpl_player_id from overrides)
+resolved as (
+    select player_ud_id, fpl_player_id, match_rule from overrides
+    union all
+    select player_ud_id, fpl_player_id, match_rule
+    from ladder
+    where player_ud_id not in (select player_ud_id from overrides)
+      and fpl_player_id not in (select fpl_player_id from overrides)
+)
+
+-- fpl_player_code rides along because it's the stable cross-season key:
+-- player_id resets every season, so joins that must survive a season
+-- rollover (e.g. the decision mart's xG signal) go through the code.
+select
+    r.player_ud_id,
+    r.fpl_player_id,
+    fpl.player_code as fpl_player_code,
+    r.match_rule
+from resolved r
+inner join fpl on r.fpl_player_id = fpl.fpl_player_id

@@ -52,9 +52,9 @@ whose form is a streak versus a trend. None of that is answerable from a single 
 So this platform **snapshots the API on a schedule and builds the time series that
 doesn't otherwise exist**, enriches it with proprietary per-match event data (WhoScored)
 and a second xG model (Understat), and reduces it all to one number per player per day:
-a 0–100 `transfer_score` with an explicit, tunable weighting — 35% value, 30% form,
-20% fixture ease, 15% transfer momentum, with availability as a hard gate rather than
-a weighted input.
+a 0–100 `transfer_score` with an explicit, tunable weighting — 30% value, 25% form,
+20% underlying threat (Understat npxG+xA per 90), 15% fixture ease, 10% transfer
+momentum, with availability as a hard gate rather than a weighted input.
 
 A missed day of snapshots is unrecoverable history, which is why ingestion runs
 unattended on GitHub Actions cron rather than anything that needs a machine switched on.

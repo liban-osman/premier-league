@@ -72,10 +72,13 @@ These entries supersede rather than edit the originals above, per this log's own
 |---|---|---|---|
 | 32 | Residual unmatched players (resolves the deferred item from #28) | **`seed_player_map_overrides_understat`** — a hand-verified dbt seed of 27 pairs, keyed on the stable `player_code`, winning over the ladder in `player_id_map_understat` | Every pair was confirmed by team + position + minutes before entering the seed (Petrović and Alisson match to the minute); the note column records why the ladder missed each one (transliterations like Đorđe/Djordje and Ødegaard — Ø isn't a strippable accent — nicknames like Matty/Matthew, name-order flips like Mitoma Kaoru). Keying on `player_code` rather than `player_id` means the seed survives season rollovers. Coverage: 489 → **516 of 537 (96%)** of 2025/26 players, and **every player with 900+ minutes is now mapped**. Still never fuzzy matching — the seed is the designed escape hatch for exactly this residue. WhoScored gets no seed: its unmatched rest is cross-season, not misspelling. |
 
+## Understat xG in the decision layer (2026-07-12)
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 33 | Fifth transfer_score signal (resolves the deferred item) | **Underlying threat = Understat npxG+xA per 90**, percentile within (load_date, position); weights rebalanced to **30% value / 25% form / 20% underlying / 15% fixtures / 10% momentum** (user-confirmed) | An *independent* xG model adds what FPL's own xG can't: a finishing-luck-robust read on chance quality — underperformers are buy-low candidates, overperformers regression bait. The mart joins through the map's stable `player_code` + season match, so historical snapshots keep joining correctly after a season rollover (`player_id` resets; the code doesn't). Scoped to outfielders with ≥450 Understat minutes: keepers all sit at ~0 npxG+xA (percent_rank would rank them all bottom instead of neutral) and tiny-minute per-90 rates are noise; everyone excluded coalesces to the neutral 0.5. At the August flip the signal degrades gracefully to neutral until Understat 2026/27 accumulates via the weekly cron. |
+
 ## Deferred (still open)
 
 - **FPL ↔ WhoScored *team* mapping.** #23 resolves players; team ids stay unmapped until a
   mart actually needs to join at team grain (name-based mapping is trivial by comparison).
-- **Understat in the decision layer.** The xG analytics *page* shipped 2026-07-11 (with
-  on-page attribution); feeding real xG into `mart_transfer_decision` as a signal is still
-  open, gated on the 2025/26 seasons aligning once the new FPL season starts.

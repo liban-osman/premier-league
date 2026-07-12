@@ -6,8 +6,9 @@
 -- injured player is not 15% less attractive, they're undroppable-in.
 --
 -- Weights (a deliberate, tunable design choice, not a fitted model):
---   35% value (points per GBP m), 30% form, 20% fixture ease (next 5),
---   15% transfer momentum (net transfers this gameweek).
+--   30% value (points per GBP m), 25% form, 20% underlying threat
+--   (Understat npxG+xA per 90 -- an independent xG model, robust to
+--   finishing luck), 15% fixture ease (next 5), 10% transfer momentum.
 with value as (
     select * from {{ ref('mart_player_value') }}
 ),
@@ -36,6 +37,31 @@ next5 as (
     where upcoming_fixture_number = 1
 ),
 
+-- Underlying threat: Understat's npxG + xA per 90, season-matched to each
+-- snapshot and joined through the map's stable player_code (player_id resets
+-- every season; the code doesn't, so historical snapshots keep joining
+-- correctly after a rollover). Scoped to outfield players with >=450
+-- Understat minutes: keepers all sit at ~0 npxG+xA (percent_rank would rank
+-- them all bottom instead of neutral), and tiny-minute per-90 rates are
+-- noise. Everyone excluded coalesces to the neutral 0.5 downstream.
+underlying as (
+    select
+        p.load_date,
+        p.player_id,
+        round((u.npxg + u.xa) / (u.minutes / 90.0), 2) as npxg_xa_per90,
+        percent_rank() over (
+            partition by p.load_date, p.position_id
+            order by (u.npxg + u.xa) / (u.minutes / 90.0)
+        ) as underlying_pctl
+    from {{ ref('stg_fpl_players') }} p
+    inner join {{ ref('stg_fpl_positions') }} pos on p.position_id = pos.position_id
+    inner join {{ ref('player_id_map_understat') }} m on p.player_code = m.fpl_player_code
+    inner join {{ ref('stg_understat_players') }} u
+        on m.player_ud_id = u.player_ud_id
+        and u.season = try_cast(p.season as integer)
+    where pos.position_short_name != 'GKP' and u.minutes >= 450
+),
+
 -- Base population is mart_player_value (removed = false); the other player
 -- marts are supersets or same-filtered, so these joins can't drop rows.
 joined as (
@@ -57,11 +83,14 @@ joined as (
         a.availability_risk,
         a.news,
         n.avg_difficulty_next_5,
-        n.fixture_pctl
+        n.fixture_pctl,
+        u.npxg_xa_per90,
+        u.underlying_pctl
     from value v
     left join momentum m on v.load_date = m.load_date and v.player_id = m.player_id
     left join availability a on v.load_date = a.load_date and v.player_id = a.player_id
     left join next5 n on v.load_date = n.load_date and v.team_id = n.team_id
+    left join underlying u on v.load_date = u.load_date and v.player_id = u.player_id
     left join {{ ref('stg_fpl_teams') }} t
         on v.load_date = t.load_date and v.team_id = t.team_id
     left join {{ ref('stg_fpl_positions') }} p on v.position_id = p.position_id
@@ -92,10 +121,11 @@ weighted as (
         *,
         round(
             100 * (
-                0.35 * coalesce(value_pctl, 0.5)
-                + 0.30 * coalesce(form_pctl, 0.5)
-                + 0.20 * coalesce(fixture_pctl, 0.5)
-                + 0.15 * coalesce(momentum_pctl, 0.5)
+                0.30 * coalesce(value_pctl, 0.5)
+                + 0.25 * coalesce(form_pctl, 0.5)
+                + 0.20 * coalesce(underlying_pctl, 0.5)
+                + 0.15 * coalesce(fixture_pctl, 0.5)
+                + 0.10 * coalesce(momentum_pctl, 0.5)
             ),
             1
         ) as transfer_score
@@ -120,8 +150,10 @@ select
     selected_by_percent,
     availability_risk,
     news,
+    npxg_xa_per90,
     round(value_pctl, 2) as value_pctl,
     round(form_pctl, 2) as form_pctl,
+    round(underlying_pctl, 2) as underlying_pctl,
     round(fixture_pctl, 2) as fixture_pctl,
     round(momentum_pctl, 2) as momentum_pctl,
     transfer_score,
