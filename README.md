@@ -70,7 +70,7 @@ unattended on GitHub Actions cron rather than anything that needs a machine swit
 | WhoScored match events staged | 579,441 across 380 matches (full 2024/25 season) |
 | Understat rows staged | 1,099 player-seasons · 1,520 team-match records across 2 seasons |
 | Players scored daily | 841, one `transfer_score` each per snapshot |
-| Cross-source player mapping | 558 FPL↔Understat (91% of current-season players) · 470 FPL↔WhoScored — deterministic rules, zero fuzzy matching |
+| Cross-source player mapping | 585 FPL↔Understat (96% of current-season players; 100% of those with 900+ minutes) · 470 FPL↔WhoScored — deterministic rules + a hand-verified override seed, zero fuzzy matching |
 | Manual steps in the live pipeline | 0 |
 
 Quality is enforced as invariants, not spot checks: goal events parsed from the

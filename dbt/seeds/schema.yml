@@ -1,0 +1,20 @@
+version: 2
+
+seeds:
+  - name: seed_player_map_overrides_understat
+    description: >
+      Hand-verified FPL <-> Understat pairs the deterministic rule ladder can't
+      reach -- transliterations, nicknames, name-order flips, hyphen variants.
+      Each pair was confirmed by matching team, position, and minutes played
+      before being added; the note column records why the ladder missed it.
+      Keyed on the stable fpl_player_code (asset id), not the season-scoped
+      player_id, so rows survive season rollovers.
+    columns:
+      - name: player_ud_id
+        data_tests:
+          - not_null
+          - unique
+      - name: fpl_player_code
+        data_tests:
+          - not_null
+          - unique

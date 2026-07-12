@@ -66,6 +66,12 @@ These entries supersede rather than edit the originals above, per this log's own
 | 30 | Where display attributes live | **`team_code`/`form_last_5` go into `mart_league_table`; player photos join from staging in the app query** | The league mart already joins `stg_fpl_teams`, and a form guide is derived logic that belongs in gold, not in a page. The player photo id, by contrast, would have to thread through two marts (`mart_player_value` → `mart_transfer_decision`) purely for display — the app-side join to silver is a pure projection, which decision #19 explicitly allows. |
 | 31 | Chart label collisions (the "can't read the names" fix) | **Haloed, direction-aware, user-controlled labels** — never more static labels | Labels get a surface-colored stroke underneath ink text; over-performers label upward and under-performers downward, away from the diagonal where the cloud is densest; the labelled set is a multiselect the reader controls (defaulting to the top-5 outliers). Clicking any point opens a full player card instead of cramming more text onto the plot. |
 
+## Mapping overrides (2026-07-11)
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 32 | Residual unmatched players (resolves the deferred item from #28) | **`seed_player_map_overrides_understat`** — a hand-verified dbt seed of 27 pairs, keyed on the stable `player_code`, winning over the ladder in `player_id_map_understat` | Every pair was confirmed by team + position + minutes before entering the seed (Petrović and Alisson match to the minute); the note column records why the ladder missed each one (transliterations like Đorđe/Djordje and Ødegaard — Ø isn't a strippable accent — nicknames like Matty/Matthew, name-order flips like Mitoma Kaoru). Keying on `player_code` rather than `player_id` means the seed survives season rollovers. Coverage: 489 → **516 of 537 (96%)** of 2025/26 players, and **every player with 900+ minutes is now mapped**. Still never fuzzy matching — the seed is the designed escape hatch for exactly this residue. WhoScored gets no seed: its unmatched rest is cross-season, not misspelling. |
+
 ## Deferred (still open)
 
 - **FPL ↔ WhoScored *team* mapping.** #23 resolves players; team ids stay unmapped until a

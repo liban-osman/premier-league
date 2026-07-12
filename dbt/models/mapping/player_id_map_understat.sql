@@ -15,6 +15,7 @@ with ud as (
 fpl as (
     select
         player_id as fpl_player_id,
+        player_code,
         lower(strip_accents(first_name || ' ' || second_name)) as full_name,
         -- long official names hide the common surname at either end:
         -- 'Bruno Miguel Borges Fernandes' goes by the LAST surname token,
@@ -98,12 +99,36 @@ rule_web_name as (
           and fpl.fpl_player_id not in (select fpl_player_id from matched_so_far_2)
     )
     where n_per_ud = 1 and n_per_fpl = 1
+),
+
+ladder as (
+    select player_ud_id, fpl_player_id, match_rule from rule_full_name
+    union all
+    select player_ud_id, fpl_player_id, match_rule from rule_short_name
+    union all
+    select player_ud_id, fpl_player_id, match_rule from rule_first_tokens
+    union all
+    select player_ud_id, fpl_player_id, match_rule from rule_web_name
+),
+
+-- Hand-verified pairs the ladder can't reach (transliterations, nicknames,
+-- name-order flips -- see the seed's note column). Keyed on the stable
+-- player_code so the seed survives season rollovers; resolved to the
+-- current season's player_id here.
+overrides as (
+    select
+        o.player_ud_id,
+        fpl.fpl_player_id,
+        'manual' as match_rule
+    from {{ ref('seed_player_map_overrides_understat') }} o
+    inner join fpl on o.fpl_player_code = fpl.player_code
 )
 
-select player_ud_id, fpl_player_id, match_rule from rule_full_name
+-- Overrides win: a ladder row that conflicts with an override on either id
+-- is dropped, so the unique (1:1) tests keep holding by construction.
+select player_ud_id, fpl_player_id, match_rule from overrides
 union all
-select player_ud_id, fpl_player_id, match_rule from rule_short_name
-union all
-select player_ud_id, fpl_player_id, match_rule from rule_first_tokens
-union all
-select player_ud_id, fpl_player_id, match_rule from rule_web_name
+select player_ud_id, fpl_player_id, match_rule
+from ladder
+where player_ud_id not in (select player_ud_id from overrides)
+  and fpl_player_id not in (select fpl_player_id from overrides)

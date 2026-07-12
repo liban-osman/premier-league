@@ -16,6 +16,16 @@ clean-targets:
 # raw -> silver -> gold layering from docs/architecture.md:
 #   staging = silver (cleaned, typed, one model per source)
 #   marts   = gold   (business-shaped, joined/aggregated for consumption)
+# seeds are small, hand-maintained mapping inputs (e.g. the manual player-map
+# overrides) -- conformance data, so they land in silver next to the maps
+seeds:
+  fpl_data_platform:
+    +schema: silver
+    seed_player_map_overrides_understat:
+      +column_types:
+        player_ud_id: integer
+        fpl_player_code: integer
+
 models:
   fpl_data_platform:
     staging:
