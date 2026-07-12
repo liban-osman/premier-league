@@ -39,6 +39,7 @@ def load_team_table(season: int) -> pd.DataFrame:
             round(sum(points) - sum(expected_points), 1) as points_minus_xpts,
             round(sum(xg), 1) as xg,
             round(sum(xga), 1) as xga,
+            cast(sum(goals_conceded) as integer) as goals_conceded,
             round(sum(npxgd), 1) as npxgd,
             round(avg(ppda), 1) as ppda
         from silver.stg_understat_team_matches
@@ -180,6 +181,43 @@ under_labels = (
 )
 st.altair_chart((bars + over_labels + under_labels).properties(height=440), width="stretch")
 st.caption("Clinical finishers up top; the biggest chance-wasters at the bottom.")
+
+st.subheader("Defence: xGA minus goals conceded")
+defence = teams.copy()
+defence["defensive_delta"] = (defence["xga"] - defence["goals_conceded"]).round(1)
+defence = defence.sort_values("defensive_delta", ascending=False)
+
+base_def = alt.Chart(defence).encode(
+    y=alt.Y("team_name:N", sort=None, title=None),
+    x=alt.X("defensive_delta:Q", title="xGA − goals conceded"),
+    tooltip=[
+        alt.Tooltip("team_name", title="Team"),
+        alt.Tooltip("goals_conceded", title="Goals conceded"),
+        alt.Tooltip("xga", title="xGA", format=".1f"),
+    ],
+)
+def_bars = base_def.mark_bar(cornerRadius=4).encode(
+    color=alt.condition(alt.datum.defensive_delta >= 0, alt.value(blue), alt.value(aqua)),
+)
+def_over_labels = (
+    base_def.mark_text(align="left", dx=4)
+    .encode(text=alt.Text("defensive_delta:Q", format="+.1f"))
+    .transform_filter(alt.datum.defensive_delta >= 0)
+)
+def_under_labels = (
+    base_def.mark_text(align="right", dx=-4)
+    .encode(text=alt.Text("defensive_delta:Q", format="+.1f"))
+    .transform_filter(alt.datum.defensive_delta < 0)
+)
+st.altair_chart(
+    (def_bars + def_over_labels + def_under_labels).properties(height=560), width="stretch"
+)
+st.caption(
+    "Positive: conceding fewer goals than the chances allowed suggest -- a defense "
+    "overperforming its underlying numbers, and a regression risk for keeper/defender "
+    "holds. Negative: leaking more than the chances faced suggest -- buy-low territory "
+    "once the defense corrects."
+)
 
 with st.expander("Full player table"):
     st.dataframe(finishers.drop(columns=["finishing_delta"]), hide_index=True)

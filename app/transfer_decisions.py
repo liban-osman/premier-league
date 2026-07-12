@@ -45,6 +45,24 @@ def load_latest_snapshot():
     return df
 
 
+@st.cache_data(ttl=3600)
+def load_defensive_outlook():
+    conn = get_conn()
+    out = conn.execute(
+        """
+        select d.*, t.team_code
+        from gold.mart_team_defensive_outlook d
+        left join silver.stg_fpl_teams t
+            on d.load_date = t.load_date and d.team_id = t.team_id
+        where d.load_date = (select max(load_date) from gold.mart_team_defensive_outlook)
+        order by d.defensive_outlook_score desc
+        """
+    ).df()
+    conn.close()
+    out["badge"] = out["team_code"].map(badge_url)
+    return out
+
+
 def player_mini_card(container, row: pd.Series, detail: str) -> None:
     """photo + badge + name + one caption line -- the shared unit for movers,
     budget picks, and top-pick tiles."""
@@ -152,6 +170,56 @@ else:
                 f"{row['points_per_million']:.1f} pts/£m"
             ),
         )
+
+st.divider()
+
+st.subheader("🧤 Clean sheet picks")
+st.caption(
+    "Best goalkeeper/defender holds by defensive outlook -- clean-sheet rate this "
+    "season blended with upcoming fixture ease. transfer_score's own signals barely "
+    "speak to defense: its underlying-threat component is an attacking metric that "
+    "sits neutral for keepers."
+)
+defensive = load_defensive_outlook()
+if defensive["fixture_pctl"].isna().all():
+    st.caption(
+        "Fixture ease isn't available yet (next season's fixture list hasn't been "
+        "published) -- rankings are on clean-sheet record alone for now."
+    )
+
+for _, team_row in defensive.head(4).iterrows():
+    team_pool = df[df["team_id"] == team_row["team_id"]]
+    top_gkp = team_pool[team_pool["position_short_name"] == "GKP"].sort_values(
+        "transfer_score", ascending=False
+    )
+    top_def = team_pool[team_pool["position_short_name"] == "DEF"].sort_values(
+        "transfer_score", ascending=False
+    )
+    with st.container(border=True):
+        badge_col, name_col = st.columns([0.3, 4], vertical_alignment="center")
+        if pd.notna(team_row["badge"]):
+            badge_col.image(team_row["badge"], width=28)
+        name_col.markdown(
+            f"**{team_row['team_name']}** — defensive outlook "
+            f"{team_row['defensive_outlook_score']:.0f}/100"
+        )
+        pick_cols = st.columns(2)
+        if not top_gkp.empty:
+            gkp = top_gkp.iloc[0]
+            player_mini_card(
+                pick_cols[0],
+                gkp,
+                detail=f"🧤 Keeper · score {gkp['transfer_score']:.0f} · £{gkp['price_m']}m",
+            )
+        if not top_def.empty:
+            defender = top_def.iloc[0]
+            player_mini_card(
+                pick_cols[1],
+                defender,
+                detail=(
+                    f"🛡️ Defender · score {defender['transfer_score']:.0f} · £{defender['price_m']}m"
+                ),
+            )
 
 st.divider()
 

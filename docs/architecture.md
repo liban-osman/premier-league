@@ -32,7 +32,7 @@ flowchart LR
         RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models<br/>+ player_id_map (FPL <-> WhoScored)"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
     end
 
-    Consumption["Streamlit Community Cloud<br/>transfer decisions · league table<br/>player stats · xG analytics"]
+    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · league table<br/>player stats · xG analytics"]
 
     FPL --> FPL_TASK --> S3_FPL --> RAW
     WS --> WS_TASK --> S3_WS --> RAW
@@ -91,7 +91,10 @@ different automation stories:
     underlying threat / fixtures / momentum) into a 0–100 `transfer_score`, with
     availability as a hard gate (high-risk → drop) rather than a weighted input;
   - `mart_league_table` — standings derived from finished fixture results (FPL zeroes the
-    bootstrap team records in preseason snapshots), guarded by a goals-balance invariant test.
+    bootstrap team records in preseason snapshots), guarded by a goals-balance invariant test;
+  - `mart_team_defensive_outlook` — a 0–100 `defensive_outlook_score` per team, blending
+    clean-sheet rate so far this season (60%) with upcoming fixture ease (40%), built for
+    goalkeeper/defender decisions that `mart_transfer_decision`'s own signals barely speak to.
 - dbt vocabulary maps directly onto the raw/silver/gold naming used everywhere else in this
   project; see the comment in `dbt/dbt_project.yml`.
 - dbt runs from its **own isolated venv** inside the Airflow image (`/home/airflow/dbt-venv`),
@@ -103,12 +106,18 @@ different automation stories:
 instead of local-only `streamlit run` — the actual fix for "usable by someone who isn't me."
 Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK_TOKEN`
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
-on every push to `main`. Four pages behind `st.navigation`:
+on every push to `main`. Five pages behind `st.navigation`:
 
-- **Transfer decisions** — the headline view over `mart_transfer_decision`, led by two
+- **Home** (default landing page) — a guided entry point rather than dropping a first-time
+  visitor straight into a data page: a one-paragraph pitch, four "today's highlights" cards
+  pulled from four different marts (top transfer pick, biggest xG performance story, best
+  clean-sheet bet, league leader) each linking into the page that explains it, then a
+  `st.page_link` row into every other page with a one-line description of what it's for.
+- **Transfer decisions** — the headline view over `mart_transfer_decision`, led by three
   actionable-highlight sections: **movers since last snapshot** (high-ownership players whose
-  recommendation bucket flipped day-over-day, split into consider-selling / consider-buying)
-  and **budget picks** (best `transfer_score` under a user-set price cutoff), then top pick per
+  recommendation bucket flipped day-over-day, split into consider-selling / consider-buying),
+  **budget picks** (best `transfer_score` under a user-set price cutoff), and **clean sheet
+  picks** (top goalkeeper/defender holds by `mart_team_defensive_outlook`), then top pick per
   position. The full sortable/filterable table and detailed methodology are demoted into a
   collapsed section, with a click-a-row card showing the five weighted signals behind the score.
 - **League table** — reads `mart_league_table`: badges, last-5 form guide, and
@@ -121,8 +130,9 @@ Team badges and player photos hotlink the official Premier League asset CDN, key
 stable asset codes staged in `stg_fpl_teams` / `stg_fpl_players` (decision log #29) —
 nothing is stored in the repo.
 - **xG analytics** — Understat-powered, season-selectable (2024/25 and 2025/26): team xG
-  table with xPTS and PPDA, points-vs-xPTS scatter, finishing over/under-performance.
-  Same silver-read policy; attributes the xG model to Understat on-page.
+  table with xPTS and PPDA, points-vs-xPTS scatter, finishing over/under-performance, and a
+  defensive mirror (xGA minus goals conceded) for the same over/under-performance read on
+  defense. Same silver-read policy; attributes the xG model to Understat on-page.
 
 **WhoScored on the public app: heavy aggregates only.** The data is not-for-redistribution and
 a public app is redistribution — so raw events or per-match detail never render there (the old

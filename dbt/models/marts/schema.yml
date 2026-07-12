@@ -88,3 +88,20 @@ models:
           - accepted_values:
               arguments:
                 values: ['upgraded', 'downgraded', 'unchanged', 'no_prior_snapshot']
+
+  - name: mart_team_defensive_outlook
+    description: >
+      One row per (load_date, team_id) -- a 0-100 defensive_outlook_score
+      blending each team's clean-sheet rate so far this season with how easy
+      their next 5 fixtures are, built for goalkeeper/defender transfer
+      decisions that mart_transfer_decision's own signals barely speak to.
+    columns:
+      - name: team_id
+        data_tests:
+          - not_null
+      - name: load_date
+        data_tests:
+          - not_null
+      - name: defensive_outlook_score
+        data_tests:
+          - not_null
