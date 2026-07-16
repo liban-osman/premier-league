@@ -116,7 +116,8 @@ on every push to `main`. Six pages behind `st.navigation`:
 - **Transfer decisions** — the headline view over `mart_transfer_decision`, led by five
   actionable-highlight sections: **movers since last snapshot** (high-ownership players whose
   recommendation bucket flipped day-over-day, split into consider-selling / consider-buying),
-  **budget picks** (best `transfer_score` under a user-set price cutoff), **differentials**
+  **budget picks** (best `transfer_score` under a user-set price cutoff, split into a column
+  per position so all four show at once rather than needing a filter), **differentials**
   (high score, low ownership, for climbing rank rather than tracking the template), **clean
   sheet picks** (top goalkeeper/defender holds by `mart_team_defensive_outlook`), and
   **captain this gameweek** (top scores paired with each player's next fixture specifically,

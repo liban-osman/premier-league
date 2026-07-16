@@ -149,6 +149,7 @@ else:
 st.divider()
 
 st.subheader("💰 Budget picks")
+st.caption("Best value under your price cap, split by position so all four show at once.")
 price_min, price_max = float(df["price_m"].min()), float(df["price_m"].max())
 budget_cutoff = st.slider(
     "Max price to count as a budget pick (£m)",
@@ -157,34 +158,32 @@ budget_cutoff = st.slider(
     min(6.0, price_max),
     step=0.5,
 )
-budget_positions = st.pills(
-    "Position",
-    ["GKP", "DEF", "MID", "FWD"],
-    selection_mode="multi",
-    key="budget_position_pills",
-)
 budget_pool = df[df["price_m"] <= budget_cutoff]
-if budget_positions:
-    budget_pool = budget_pool[budget_pool["position_short_name"].isin(budget_positions)]
-# transfer_score, not points_per_million: the score already bakes in the
-# availability hard gate, so an injured cheap player can't wrongly surface
-# as a "pick" the way a raw value sort could.
-budget_picks = budget_pool.sort_values("transfer_score", ascending=False).head(5)
 
-if budget_picks.empty:
-    st.caption(f"No players at £{budget_cutoff:.1f}m or under match these filters.")
-else:
-    budget_tiles = st.columns(len(budget_picks))
-    for tile, (_, row) in zip(budget_tiles, budget_picks.iterrows()):
-        player_mini_card(
-            tile,
-            row,
-            detail=(
-                f"{row['team_name']}  \n"
-                f"score {row['transfer_score']:.0f} · £{row['price_m']}m · "
-                f"{row['points_per_million']:.1f} pts/£m"
-            ),
-        )
+budget_cols = st.columns(4)
+for col, pos in zip(budget_cols, ["GKP", "DEF", "MID", "FWD"]):
+    col.markdown(f"**{pos}**")
+    # transfer_score, not points_per_million: the score already bakes in the
+    # availability hard gate, so an injured cheap player can't wrongly surface
+    # as a "pick" the way a raw value sort could.
+    pos_picks = (
+        budget_pool[budget_pool["position_short_name"] == pos]
+        .sort_values("transfer_score", ascending=False)
+        .head(3)
+    )
+    if pos_picks.empty:
+        col.caption(f"None at £{budget_cutoff:.1f}m or under.")
+    else:
+        for _, row in pos_picks.iterrows():
+            player_mini_card(
+                col,
+                row,
+                detail=(
+                    f"{row['team_name']}  \n"
+                    f"score {row['transfer_score']:.0f} · £{row['price_m']}m · "
+                    f"{row['points_per_million']:.1f} pts/£m"
+                ),
+            )
 
 st.divider()
 
