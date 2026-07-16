@@ -110,7 +110,7 @@ leader = load_league_leader()
 
 c1, c2, c3, c4 = st.columns(4)
 
-with c1.container(border=True):
+with c1.container(border=True, key="highlight-0"):
     if pd.notna(top_pick["player_code"]):
         st.image(photo_url(top_pick["player_code"]), width=64)
     st.markdown(f"**🔁 {top_pick['web_name']}**")
@@ -120,7 +120,7 @@ with c1.container(border=True):
     )
     st.page_link("transfer_decisions.py", label="Transfer Decisions", icon="🔁")
 
-with c2.container(border=True):
+with c2.container(border=True, key="highlight-1"):
     delta = xg_story["delta"]
     verb = "outscoring" if delta >= 0 else "underperforming"
     xg_season = int(xg_story["season"])
@@ -131,7 +131,7 @@ with c2.container(border=True):
     )
     st.page_link("xg_analytics.py", label="xG Analytics", icon="📈")
 
-with c3.container(border=True):
+with c3.container(border=True, key="highlight-2"):
     if pd.notna(best_defence["team_code"]):
         st.image(badge_url(best_defence["team_code"]), width=40)
     st.markdown(f"**🧤 {best_defence['team_name']}**")
@@ -144,7 +144,7 @@ with c3.container(border=True):
     )
     st.page_link("transfer_decisions.py", label="Clean Sheet Picks", icon="🔁")
 
-with c4.container(border=True):
+with c4.container(border=True, key="highlight-3"):
     if pd.notna(leader["team_code"]):
         st.image(badge_url(leader["team_code"]), width=40)
     st.markdown(f"**🏆 {leader['team_name']}**")

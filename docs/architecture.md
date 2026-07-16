@@ -164,6 +164,15 @@ a public app is redistribution — so raw events or per-match detail never rende
 pass-map page was removed for this reason, among others). Season-level derived metrics are the
 permitted ceiling.
 
+**Visual design.** `.streamlit/config.toml` sets a dark, violet-accented theme built from the
+same validated reference palette `app/ui.py` already used for chart series (decision log
+#52-56) — applied one layer up, at the app-chrome level, instead of only inside chart marks.
+`app/ui.py` also carries the color *meaning*: a fixed status palette (transfer_in/hold/monitor/drop
+→ green/blue/yellow/red) and a fixed position palette (GKP/DEF/MID/FWD → violet/aqua/orange/magenta),
+rendered as a card's colored left border (keyed via `st.container`'s `key` param) or a translucent
+row wash (`df.style.apply()`, the same technique `league_table.py`'s `zone_tint` established) —
+never the sole channel; icon + label carries the same information alongside every color.
+
 ## Known open items
 
 - ~~**FPL ↔ WhoScored join key.**~~ Resolved 2026-07-11 for players: `player_id_map` maps

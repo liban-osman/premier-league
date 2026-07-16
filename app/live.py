@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from db import get_conn
-from ui import badge_url, photo_url
+from ui import POSITION_COLORS, badge_url, photo_url
 
 st.title("Live")
 st.caption(
@@ -86,6 +86,15 @@ if played.empty:
     st.caption(f"No minutes played yet for Gameweek {gw['id']}.")
 else:
     top = played.sort_values("total_points", ascending=False).head(15)
+
+    # Same translucent row-wash technique as league_table.py's zone_tint --
+    # the Pos column text is the real encoding, this just makes position
+    # scannable at a glance across a 15-row table.
+    def position_tint(row: pd.Series) -> list[str]:
+        color = POSITION_COLORS.get(row["position_short_name"])
+        style = f"background-color: {color}1f" if color else ""
+        return [style] * len(row)
+
     st.dataframe(
         top[
             [
@@ -101,7 +110,7 @@ else:
                 "bonus",
                 "total_points",
             ]
-        ],
+        ].style.apply(position_tint, axis=1),
         hide_index=True,
         column_config={
             "photo": st.column_config.ImageColumn("", width="small"),

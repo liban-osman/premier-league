@@ -1,0 +1,23 @@
+# App theme. Values are the dataviz skill's validated reference palette
+# (dark surfaces + dark-mode categorical/status steps) -- not invented here,
+# just applied at the app-chrome level instead of only inside chart code
+# (see app/ui.py, which already used this same palette for chart series).
+# See docs/decision_log.md for the reasoning.
+[theme]
+base = "dark"
+primaryColor = "#9085e9"               # violet -- brand accent (buttons, sliders, focus rings)
+backgroundColor = "#0d0d0d"            # page plane
+secondaryBackgroundColor = "#1a1a19"   # chart/widget surface -- lifts cards off the page
+textColor = "#ffffff"
+linkColor = "#3987e5"                  # blue -- page_link / markdown links
+borderColor = "rgba(255,255,255,0.14)"
+baseRadius = "0.75rem"
+showWidgetBorder = false
+
+# Status colors (fixed, never themed -- see palette.md's status table).
+greenColor = "#0ca30c"    # good
+yellowColor = "#fab219"   # warning
+orangeColor = "#d95926"   # serious / MID position
+redColor = "#d03b3b"      # critical
+blueColor = "#3987e5"     # neutral / hold
+violetColor = "#9085e9"   # brand / GKP position

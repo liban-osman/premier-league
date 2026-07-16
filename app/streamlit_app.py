@@ -1,6 +1,8 @@
 import streamlit as st
+from ui import inject_theme_css
 
 st.set_page_config(page_title="FPL Data Platform", page_icon="⚽", layout="wide")
+inject_theme_css()
 
 pg = st.navigation(
     [

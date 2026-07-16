@@ -2,7 +2,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import badge_url, photo_url, series_hues
+from ui import badge_url, photo_url, position_badge, series_hues
 
 st.title("FPL Transfer Decisions")
 
@@ -78,15 +78,24 @@ def load_next_fixtures():
     return out
 
 
-def player_mini_card(container, row: pd.Series, detail: str) -> None:
-    """photo + badge + name + one caption line -- the shared unit for movers,
-    budget picks, and top-pick tiles."""
-    with container.container(border=True):
+def player_mini_card(container, row: pd.Series, detail: str, section: str) -> None:
+    """photo + badge + name + position + one caption line -- the shared unit
+    for movers, budget picks, differentials, clean sheet picks, captaincy,
+    and top-pick tiles. Left border is status-colored (keyed off `recommendation`,
+    present on every row this is called with); name carries a position badge.
+    `section` scopes the container key so the same player appearing in two
+    sections (e.g. a budget pick that's also its position's top pick) doesn't
+    collide -- Streamlit keys must be unique across the whole page render."""
+    key = f"status-{row['recommendation']}-{section}-{row['player_id']}"
+    with container.container(border=True, key=key):
         face, badge_col, facts = st.columns([1, 0.4, 1.6], vertical_alignment="center")
         face.image(row["photo"], width=56)
         if pd.notna(row["badge"]):
             badge_col.image(row["badge"], width=24)
-        facts.markdown(f"**{row['web_name']}**")
+        facts.markdown(
+            f"**{row['web_name']}**{position_badge(row.get('position_short_name'))}",
+            unsafe_allow_html=True,
+        )
         facts.caption(detail)
 
 
@@ -137,14 +146,14 @@ else:
         col_sell.caption("No high-ownership players downgraded since the last snapshot.")
     else:
         for _, row in downgraded.head(5).iterrows():
-            player_mini_card(col_sell, row, detail=mover_detail(row))
+            player_mini_card(col_sell, row, detail=mover_detail(row), section="movers-sell")
 
     col_buy.markdown("**🟢 Rising — consider buying**")
     if upgraded.empty:
         col_buy.caption("No high-ownership players upgraded since the last snapshot.")
     else:
         for _, row in upgraded.head(5).iterrows():
-            player_mini_card(col_buy, row, detail=mover_detail(row))
+            player_mini_card(col_buy, row, detail=mover_detail(row), section="movers-buy")
 
 st.divider()
 
@@ -183,6 +192,7 @@ for col, pos in zip(budget_cols, ["GKP", "DEF", "MID", "FWD"]):
                     f"score {row['transfer_score']:.0f} · £{row['price_m']}m · "
                     f"{row['points_per_million']:.1f} pts/£m"
                 ),
+                section="budget",
             )
 
 st.divider()
@@ -217,6 +227,7 @@ else:
                 f"{row['team_name']}  \n"
                 f"score {row['transfer_score']:.0f} · owned {row['selected_by_percent']:.1f}%"
             ),
+            section="differentials",
         )
 
 st.divider()
@@ -258,6 +269,7 @@ for _, team_row in defensive.head(4).iterrows():
                 pick_cols[0],
                 gkp,
                 detail=f"🧤 Keeper · score {gkp['transfer_score']:.0f} · £{gkp['price_m']}m",
+                section="cleansheet-gkp",
             )
         if not top_def.empty:
             defender = top_def.iloc[0]
@@ -267,6 +279,7 @@ for _, team_row in defensive.head(4).iterrows():
                 detail=(
                     f"🛡️ Defender · score {defender['transfer_score']:.0f} · £{defender['price_m']}m"
                 ),
+                section="cleansheet-def",
             )
 
 st.divider()
@@ -297,6 +310,7 @@ for tile, (_, row) in zip(captain_tiles, captain_pool.head(5).iterrows()):
         tile,
         row,
         detail=f"{row['team_name']}  \nscore {row['transfer_score']:.0f} · {fixture_detail}",
+        section="captain",
     )
 
 st.divider()
@@ -312,6 +326,7 @@ for tile, pos in zip(tiles, ["GKP", "DEF", "MID", "FWD"]):
         tile,
         pick,
         detail=f"{pick['team_name']}  \nscore {pick['transfer_score']:.0f} · £{pick['price_m']}m",
+        section="toppick",
     )
 
 with st.expander("Full player table & methodology"):

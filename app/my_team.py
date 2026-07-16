@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import streamlit as st
 from db import get_conn
-from ui import badge_url, photo_url
+from ui import STATUS_COLORS, badge_url, photo_url, position_badge
 
 st.title("My Team")
 st.caption(
@@ -131,22 +131,34 @@ if unresolved:
         "the top flight) and are excluded from the signals below."
     )
 
+
+# Same row-tint pattern as league_table.py's zone_tint: a translucent wash so
+# it stays legible on both themes, icon + label (the verdict column itself)
+# carries the same info, so the tint is never the only encoding.
+def verdict_tint(row: pd.Series) -> list[str]:
+    color = STATUS_COLORS.get(row["recommendation"])
+    style = f"background-color: {color}26" if color else ""
+    return [style] * len(row)
+
+
+squad_display_cols = [
+    "photo",
+    "badge",
+    "web_name",
+    "team_name",
+    "position_short_name",
+    "role",
+    "squad_slot",
+    "price_m",
+    "transfer_score",
+    "verdict",
+]
 st.dataframe(
-    squad[
-        [
-            "photo",
-            "badge",
-            "web_name",
-            "team_name",
-            "position_short_name",
-            "role",
-            "squad_slot",
-            "price_m",
-            "transfer_score",
-            "verdict",
-        ]
-    ],
+    # recommendation rides along (hidden via column_order below) so
+    # verdict_tint can read it -- it isn't itself a display column.
+    squad[[*squad_display_cols, "recommendation"]].style.apply(verdict_tint, axis=1),
     hide_index=True,
+    column_order=squad_display_cols,
     column_config={
         "photo": st.column_config.ImageColumn("", width="small"),
         "badge": st.column_config.ImageColumn("", width="small"),
@@ -194,10 +206,15 @@ if weak.empty:
 else:
     for _, player in weak.iterrows():
         replacement = suggest_replacement(signals, squad_ids, player, bank_m)
-        with st.container(border=True):
+        key = f"status-{player['recommendation']}-weaklink-{player['player_id']}"
+        with st.container(border=True, key=key):
             out_col, arrow_col, in_col = st.columns([2, 0.4, 2], vertical_alignment="center")
             with out_col:
-                st.markdown(f"**{player['web_name']}** — {player['verdict']}")
+                pos = position_badge(player.get("position_short_name"))
+                st.markdown(
+                    f"**{player['web_name']}**{pos} — {player['verdict']}",
+                    unsafe_allow_html=True,
+                )
                 st.caption(
                     f"{player['team_name']} · score {player['transfer_score']:.0f} · "
                     f"£{player['price_m']}m"
@@ -205,7 +222,8 @@ else:
             arrow_col.markdown("→")
             with in_col:
                 if replacement is not None:
-                    st.markdown(f"**{replacement['web_name']}**")
+                    pos = position_badge(replacement.get("position_short_name"))
+                    st.markdown(f"**{replacement['web_name']}**{pos}", unsafe_allow_html=True)
                     st.caption(
                         f"{replacement['team_name']} · score {replacement['transfer_score']:.0f} · "
                         f"£{replacement['price_m']}m"

@@ -71,8 +71,18 @@ if results.empty:
     st.caption("No standings available for this league yet.")
 else:
     results["you"] = results["entry"] == int(team_id)
+
+    # A 50-row table hides your own position by default -- same translucent
+    # row-wash technique as league_table.py's zone_tint, but here the "you"
+    # checkbox column is the icon+label pairing rather than a separate column.
+    def you_tint(row: pd.Series) -> list[str]:
+        style = "background-color: #9085e926" if row["you"] else ""
+        return [style] * len(row)
+
     st.dataframe(
-        results[["rank", "entry_name", "player_name", "total", "you"]],
+        results[["rank", "entry_name", "player_name", "total", "you"]].style.apply(
+            you_tint, axis=1
+        ),
         hide_index=True,
         column_config={
             "rank": "#",
