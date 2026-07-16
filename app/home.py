@@ -158,7 +158,7 @@ with c4.container(border=True):
 
 st.divider()
 st.subheader("Where to go")
-nav_cols = st.columns(5)
+nav_cols = st.columns(6)
 with nav_cols[0]:
     st.page_link("transfer_decisions.py", label="Transfer Decisions", icon="🔁")
     st.caption("Movers, budget picks, differentials, clean sheet picks, captaincy.")
@@ -166,11 +166,14 @@ with nav_cols[1]:
     st.page_link("my_team.py", label="My Team", icon="🧑‍💼")
     st.caption("Your actual squad against today's signals — weak links and swaps.")
 with nav_cols[2]:
+    st.page_link("live.py", label="Live", icon="🔴")
+    st.caption("This gameweek's live scores — goals, bonus, and points as they land.")
+with nav_cols[3]:
     st.page_link("league_table.py", label="League Table", icon="🏆")
     st.caption("Standings, form guide, qualification/relegation zones.")
-with nav_cols[3]:
+with nav_cols[4]:
     st.page_link("player_stats.py", label="Player Stats", icon="📊")
     st.caption("Top scorers/assists, goals vs xG.")
-with nav_cols[4]:
+with nav_cols[5]:
     st.page_link("xg_analytics.py", label="xG Analytics", icon="📈")
     st.caption("Team and player xG models, over/underperformance.")

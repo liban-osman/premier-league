@@ -32,7 +32,7 @@ flowchart LR
         RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models<br/>+ player_id_map (FPL <-> WhoScored)"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
     end
 
-    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · my team · league table<br/>player stats · xG analytics"]
+    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · my team · live<br/>league table · player stats · xG analytics"]
 
     FPL --> FPL_TASK --> S3_FPL --> RAW
     WS --> WS_TASK --> S3_WS --> RAW
@@ -106,7 +106,7 @@ different automation stories:
 instead of local-only `streamlit run` — the actual fix for "usable by someone who isn't me."
 Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK_TOKEN`
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
-on every push to `main`. Six pages behind `st.navigation`:
+on every push to `main`. Seven pages behind `st.navigation`:
 
 - **Home** (default landing page) — a guided entry point rather than dropping a first-time
   visitor straight into a data page: a one-paragraph pitch, four "today's highlights" cards
@@ -133,6 +133,11 @@ on every push to `main`. Six pages behind `st.navigation`:
   the manager's actual captain against the highest-scoring fit starter in their XI. No new
   ingestion or dbt models — the picks are per-manager and change within a day (transfers,
   chip use), which is the opposite of what the daily snapshot pattern is for.
+- **Live** — the other live-API page: pulls `event/{gw}/live/` for the current gameweek's
+  provisional stats (goals, assists, bonus, total points as BPS awards them) and shows the
+  top 15 performers so far, plus the gameweek's average/highest score once FPL computes
+  them. Same off-season detection as My Team (an already-finished gameweek with no next one
+  queued), reused rather than re-derived.
 - **League table** — reads `mart_league_table`: badges, last-5 form guide, and
   qualification/relegation zone tints.
 - **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter with

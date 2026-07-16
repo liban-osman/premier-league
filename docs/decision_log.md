@@ -126,6 +126,18 @@ mean what its framing implies.
 | 47 | Home's xG performance-story card | **Show the season alongside the stat** (e.g. "2025/26") | Same silent-staleness shape as #46, one tier down in severity since the copy never claimed "today." Cheap, consistent fix while already auditing this page. |
 | 48 | `player_stats.py`'s season caption | **Read `season` from the query instead of a hardcoded `"2025/26"` string** | Found mid-audit: the literal string would've silently gone wrong the next time the FPL API's season label rolls over (already handled as a live variable everywhere else per #34/decision on `SEASON` env var) — a hardcoded copy of a value that's supposed to change was exactly the kind of bug this audit was looking for. |
 
+## Competitor benchmarking: two borrowed ideas (2026-07-15)
+
+Compared the site against `fpl-helper.vercel.app` (screenshot-based, no scraping — its
+dashboard is client-rendered with nothing in initial HTML). Two ideas were worth taking on
+their own merits, independent of the honesty gap above (#46-48), which came from the same
+comparison but was really our own pre-existing bug, not something to imitate.
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 49 | Budget Picks layout | **Split into a column per position (GKP/DEF/MID/FWD, top 3 each) under the shared price cap**, replacing the single position-pills-filtered list of 5 | Their Best Value Picks panel shows every position at once; ours required filtering to see one at a time. No new data — same `transfer_score`-sorted pool, just laid out so a manager doesn't have to click through four filters to check all four positions before making a call. |
+| 50 | New "Live" page | **`event/{gw}/live/` (public, no auth) for the current gameweek's provisional stats**, reusing the exact live-API + off-season-detection pattern already built for My Team (#41-42) rather than inventing a new one | They have a Live page and we didn't; the pattern to build it was already sitting in `my_team.py` unused elsewhere. Verified against the real API before writing UI code (`event/38/live/`, 841 elements, `stats.total_points`/`bonus`/`bps` etc. all present and correctly zeroed for benched players) — same discipline as #41. |
+
 ## Deferred (still open)
 
 - **Ingredient validation for `transfer_score`** (#45) — checking whether the individual signals
