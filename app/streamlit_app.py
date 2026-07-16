@@ -8,6 +8,7 @@ pg = st.navigation(
         st.Page("transfer_decisions.py", title="Transfer Decisions", icon="🔁"),
         st.Page("my_team.py", title="My Team", icon="🧑‍💼"),
         st.Page("live.py", title="Live", icon="🔴"),
+        st.Page("leaderboard.py", title="Leaderboard", icon="📋"),
         st.Page("league_table.py", title="League Table", icon="🏆"),
         st.Page("player_stats.py", title="Player Stats", icon="📊"),
         st.Page("xg_analytics.py", title="xG Analytics", icon="📈"),

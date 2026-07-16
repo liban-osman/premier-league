@@ -32,7 +32,7 @@ flowchart LR
         RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models<br/>+ player_id_map (FPL <-> WhoScored)"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
     end
 
-    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · my team · live<br/>league table · player stats · xG analytics"]
+    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · my team · live · leaderboard<br/>league table · player stats · xG analytics"]
 
     FPL --> FPL_TASK --> S3_FPL --> RAW
     WS --> WS_TASK --> S3_WS --> RAW
@@ -106,7 +106,7 @@ different automation stories:
 instead of local-only `streamlit run` — the actual fix for "usable by someone who isn't me."
 Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK_TOKEN`
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
-on every push to `main`. Seven pages behind `st.navigation`:
+on every push to `main`. Eight pages behind `st.navigation`:
 
 - **Home** (default landing page) — a guided entry point rather than dropping a first-time
   visitor straight into a data page: a one-paragraph pitch, four "today's highlights" cards
@@ -138,6 +138,13 @@ on every push to `main`. Seven pages behind `st.navigation`:
   top 15 performers so far, plus the gameweek's average/highest score once FPL computes
   them. Same off-season detection as My Team (an already-finished gameweek with no next one
   queued), reused rather than re-derived.
+- **Leaderboard** — the third live-API page: given a manager's team ID, lists their
+  private classic mini-leagues (`entry/{id}/`'s `leagues.classic`, filtered to
+  `league_type == "x"` — user-created leagues, not the automatic system ones like
+  "Overall" or a supported club's league, which are too large to be a meaningful table)
+  and shows the standings for whichever one is picked
+  (`leagues-classic/{league_id}/standings/`), with the manager's own row flagged. First
+  page only (top 50) — no pagination into further pages yet.
 - **League table** — reads `mart_league_table`: badges, last-5 form guide, and
   qualification/relegation zone tints.
 - **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter with
