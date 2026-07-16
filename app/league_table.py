@@ -18,7 +18,7 @@ def load_table():
         """
         select
             position, team_code, team_name, played, won, drawn, lost,
-            goals_for, goals_against, goal_difference, points, form_last_5, load_date
+            goals_for, goals_against, goal_difference, points, form_last_5, load_date, season
         from gold.mart_league_table
         where load_date = (select max(load_date) from gold.mart_league_table)
         order by position
@@ -31,6 +31,17 @@ def load_table():
 
 df = load_table()
 st.caption(f"Snapshot: {df['load_date'].iloc[0]:%Y-%m-%d}")
+
+# A 20-team PL season is always 38 games; every team hitting that means the
+# table is a completed season's final standings, not a live in-progress one
+# -- true regardless of what the "season" label says, since the FPL API
+# itself doesn't roll that label over until the next season's fixtures exist.
+if df["played"].min() >= 38:
+    season = int(df["season"].iloc[0])
+    st.info(
+        f"Showing the final standings from the {season}/{str(season + 1)[2:]} season — "
+        "the new season's fixtures haven't been played yet."
+    )
 
 leader = df.iloc[0]
 attack = df.loc[df["goals_for"].idxmax()]

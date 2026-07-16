@@ -47,7 +47,7 @@ def load_xg_story():
     row = (
         conn.execute(
             """
-            select player_name, team_name, goals, xg, (goals - xg) as delta
+            select player_name, team_name, goals, xg, (goals - xg) as delta, season
             from silver.stg_understat_players
             where season = (select max(season) from silver.stg_understat_players)
               and minutes >= 900
@@ -68,7 +68,7 @@ def load_best_defence():
     row = (
         conn.execute(
             """
-            select d.team_name, d.defensive_outlook_score, t.team_code
+            select d.team_name, d.defensive_outlook_score, d.played, t.team_code
             from gold.mart_team_defensive_outlook d
             left join silver.stg_fpl_teams t
                 on d.load_date = t.load_date and d.team_id = t.team_id
@@ -90,7 +90,7 @@ def load_league_leader():
     row = (
         conn.execute(
             """
-            select team_name, points, played, team_code
+            select team_name, points, played, team_code, season
             from gold.mart_league_table
             where load_date = (select max(load_date) from gold.mart_league_table)
               and position = 1
@@ -123,10 +123,11 @@ with c1.container(border=True):
 with c2.container(border=True):
     delta = xg_story["delta"]
     verb = "outscoring" if delta >= 0 else "underperforming"
+    xg_season = int(xg_story["season"])
     st.markdown(f"**⚡ {xg_story['player_name']}**")
     st.caption(
         f"{xg_story['team_name']} · {verb} their chances — {int(xg_story['goals'])} goals "
-        f"from {xg_story['xg']:.1f} xG ({delta:+.1f})"
+        f"from {xg_story['xg']:.1f} xG ({delta:+.1f}) · {xg_season}/{str(xg_season + 1)[2:]}"
     )
     st.page_link("xg_analytics.py", label="xG Analytics", icon="📈")
 
@@ -134,9 +135,12 @@ with c3.container(border=True):
     if pd.notna(best_defence["team_code"]):
         st.image(badge_url(best_defence["team_code"]), width=40)
     st.markdown(f"**🧤 {best_defence['team_name']}**")
+    # A full 38-game record means this is last season's final tally, not a
+    # live in-progress one -- same reasoning as league_table.py's own check.
+    record_note = " (final, last season)" if best_defence["played"] >= 38 else ""
     st.caption(
         f"Defensive outlook {best_defence['defensive_outlook_score']:.0f}/100 — "
-        "best clean-sheet bet"
+        f"best clean-sheet bet{record_note}"
     )
     st.page_link("transfer_decisions.py", label="Clean Sheet Picks", icon="🔁")
 
@@ -144,7 +148,12 @@ with c4.container(border=True):
     if pd.notna(leader["team_code"]):
         st.image(badge_url(leader["team_code"]), width=40)
     st.markdown(f"**🏆 {leader['team_name']}**")
-    st.caption(f"{leader['points']} pts from {leader['played']} played — league leader")
+    if leader["played"] >= 38:
+        season = int(leader["season"])
+        detail = f"{leader['points']} pts, final {season}/{str(season + 1)[2:]} table"
+    else:
+        detail = f"{leader['points']} pts from {leader['played']} played"
+    st.caption(f"{detail} — league leader")
     st.page_link("league_table.py", label="League Table", icon="🏆")
 
 st.divider()

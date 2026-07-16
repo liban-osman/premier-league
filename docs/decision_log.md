@@ -113,6 +113,19 @@ Everything so far scored players in isolation. The real gap: nothing answered "w
 | 44 | Transfer Decisions: two more highlight sections | **"🎯 Differentials"** (high `transfer_score`, low ownership, user-adjustable threshold) and **"👑 Captain this gameweek"** (top scores paired with the *single* next fixture per team, not the rolling next-5 `mart_team_fixture_difficulty` already averages) | Differentials is a straight low-ownership filter over existing columns — same shape as budget picks (#34), zero new data. Captaincy is specifically a *this-week* decision, so it needed the one-fixture-ahead row (`upcoming_fixture_number = 1`) rather than the 5-game rolling average `transfer_score` already bakes in; reused `mart_team_fixture_difficulty` as-is rather than adding a new blended score, to avoid inventing yet another unvalidated weighting scheme. |
 | 45 | "Backtest transfer_score" reframed before building anything | **Investigated feasibility first, found a real blocker, and said so rather than building something that silently claims more than it can prove**: `transfer_score` depends on our own daily snapshot deltas (price momentum, form trend), and that pipeline has only run since 2026-07-10 — there is no historical time series of our own inputs to replay. A genuine backtest of the exact daily-computed score isn't currently possible | The honest fallback is validating the *ingredients* (e.g. does season-total Understat npxG+xA correlate with realized points?) using `event/{gw}/live/`, which serves real historical per-gameweek results for any past gameweek regardless of when it's called — a different, weaker claim than "would our score have called it," and worth keeping visibly different. Deferred, not built, pending a decision on which version to pursue. |
 
+## Honest-data audit: don't let stale data pose as live (2026-07-15)
+
+Prompted by benchmarking against a competitor site that shows a "Best Form: 0.0" stat
+tile with no caveat — a technically-correct, practically-meaningless number presented as
+insight. Audited every page for the same shape of problem: a value that's real but doesn't
+mean what its framing implies.
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 46 | League Table, and the Home cards derived from it (leader, best-clean-sheet) | **Detect a completed season (every team at 38/38 played) and say so explicitly**, rather than presenting last season's final table as if it were today's live standings | `mart_league_table` and `mart_team_defensive_outlook` both correctly fall back to the most recent *finished* season while the new one has no results yet — that's the right data choice, but neither page disclosed it. "Arsenal, 85 pts, league leader" reads as current-season fact to anyone who doesn't already know the fixture calendar. The 38-game check is data-only (no live API call needed) and self-corrects the moment real fixtures start resolving below 38 games played. |
+| 47 | Home's xG performance-story card | **Show the season alongside the stat** (e.g. "2025/26") | Same silent-staleness shape as #46, one tier down in severity since the copy never claimed "today." Cheap, consistent fix while already auditing this page. |
+| 48 | `player_stats.py`'s season caption | **Read `season` from the query instead of a hardcoded `"2025/26"` string** | Found mid-audit: the literal string would've silently gone wrong the next time the FPL API's season label rolls over (already handled as a live variable everywhere else per #34/decision on `SEASON` env var) — a hardcoded copy of a value that's supposed to change was exactly the kind of bug this audit was looking for. |
+
 ## Deferred (still open)
 
 - **Ingredient validation for `transfer_score`** (#45) — checking whether the individual signals

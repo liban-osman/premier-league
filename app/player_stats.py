@@ -16,7 +16,7 @@ def load_players():
         """
         select
             p.load_date, p.web_name, p.player_code, t.team_name, t.team_code,
-            pos.position_short_name,
+            pos.position_short_name, p.season,
             p.goals_scored, p.assists, p.expected_goals, p.expected_assists,
             p.minutes, p.total_points, p.clean_sheets
         from silver.stg_fpl_players p
@@ -67,7 +67,11 @@ def halo_labels(points: pd.DataFrame, dy: int, halo: str, ink: str) -> list[alt.
 df = load_players()
 blue, aqua = series_hues()
 
-st.caption(f"Snapshot: {df['load_date'].iloc[0]:%Y-%m-%d} — 2025/26 season totals from FPL")
+season = int(df["season"].iloc[0])
+st.caption(
+    f"Snapshot: {df['load_date'].iloc[0]:%Y-%m-%d} — "
+    f"{season}/{str(season + 1)[2:]} season totals from FPL"
+)
 
 left, right = st.columns(2)
 left.subheader("Top scorers")
