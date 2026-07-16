@@ -63,6 +63,21 @@ def load_defensive_outlook():
     return out
 
 
+@st.cache_data(ttl=3600)
+def load_next_fixtures():
+    conn = get_conn()
+    out = conn.execute(
+        """
+        select team_id, opponent_name, is_home, difficulty
+        from gold.mart_team_fixture_difficulty
+        where load_date = (select max(load_date) from gold.mart_team_fixture_difficulty)
+          and upcoming_fixture_number = 1
+        """
+    ).df()
+    conn.close()
+    return out
+
+
 def player_mini_card(container, row: pd.Series, detail: str) -> None:
     """photo + badge + name + one caption line -- the shared unit for movers,
     budget picks, and top-pick tiles."""
@@ -173,6 +188,40 @@ else:
 
 st.divider()
 
+st.subheader("🎯 Differentials")
+st.caption(
+    "High transfer_score, low ownership -- picks for climbing rank rather than "
+    "tracking the template."
+)
+diff_max_owned = st.slider(
+    "Max ownership to count as a differential (%)",
+    0.0,
+    float(df["selected_by_percent"].max()),
+    5.0,
+    step=0.5,
+)
+differentials = (
+    df[df["selected_by_percent"] <= diff_max_owned]
+    .sort_values("transfer_score", ascending=False)
+    .head(5)
+)
+
+if differentials.empty:
+    st.caption(f"No players at {diff_max_owned:.1f}% ownership or under match this filter.")
+else:
+    diff_tiles = st.columns(len(differentials))
+    for tile, (_, row) in zip(diff_tiles, differentials.iterrows()):
+        player_mini_card(
+            tile,
+            row,
+            detail=(
+                f"{row['team_name']}  \n"
+                f"score {row['transfer_score']:.0f} · owned {row['selected_by_percent']:.1f}%"
+            ),
+        )
+
+st.divider()
+
 st.subheader("🧤 Clean sheet picks")
 st.caption(
     "Best goalkeeper/defender holds by defensive outlook -- clean-sheet rate this "
@@ -220,6 +269,36 @@ for _, team_row in defensive.head(4).iterrows():
                     f"🛡️ Defender · score {defender['transfer_score']:.0f} · £{defender['price_m']}m"
                 ),
             )
+
+st.divider()
+
+st.subheader("👑 Captain this gameweek")
+st.caption(
+    "Top transfer_score players, with their next fixture alongside -- a great score "
+    "against a tough fixture is a different call than a great score against a soft one."
+)
+next_fixtures = load_next_fixtures()
+captain_pool = df.merge(next_fixtures, on="team_id", how="left").sort_values(
+    "transfer_score", ascending=False
+)
+if next_fixtures.empty:
+    st.caption(
+        "Fixture ease isn't available yet (next season's fixture list hasn't been "
+        "published) -- ranked on transfer_score alone for now."
+    )
+
+captain_tiles = st.columns(5)
+for tile, (_, row) in zip(captain_tiles, captain_pool.head(5).iterrows()):
+    if pd.notna(row["opponent_name"]):
+        venue = "h" if row["is_home"] else "a"
+        fixture_detail = f"vs {row['opponent_name']} ({venue}) · FDR {int(row['difficulty'])}"
+    else:
+        fixture_detail = "fixture TBD"
+    player_mini_card(
+        tile,
+        row,
+        detail=f"{row['team_name']}  \nscore {row['transfer_score']:.0f} · {fixture_detail}",
+    )
 
 st.divider()
 

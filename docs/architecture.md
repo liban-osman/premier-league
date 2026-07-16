@@ -32,7 +32,7 @@ flowchart LR
         RAW["raw -- loaded via DuckDB's native S3/httpfs read"] --> SILVER["silver -- dbt staging models<br/>+ player_id_map (FPL <-> WhoScored)"] --> GOLD["gold -- dbt marts<br/>incl. mart_transfer_decision"]
     end
 
-    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · league table<br/>player stats · xG analytics"]
+    Consumption["Streamlit Community Cloud<br/>home · transfer decisions · my team · league table<br/>player stats · xG analytics"]
 
     FPL --> FPL_TASK --> S3_FPL --> RAW
     WS --> WS_TASK --> S3_WS --> RAW
@@ -106,20 +106,32 @@ different automation stories:
 instead of local-only `streamlit run` — the actual fix for "usable by someone who isn't me."
 Connects to the same MotherDuck database the pipeline writes to, via `MOTHERDUCK_TOKEN`
 (bridged from `st.secrets` into the environment on Cloud; from `.env` locally). Auto-redeploys
-on every push to `main`. Five pages behind `st.navigation`:
+on every push to `main`. Six pages behind `st.navigation`:
 
 - **Home** (default landing page) — a guided entry point rather than dropping a first-time
   visitor straight into a data page: a one-paragraph pitch, four "today's highlights" cards
   pulled from four different marts (top transfer pick, biggest xG performance story, best
   clean-sheet bet, league leader) each linking into the page that explains it, then a
   `st.page_link` row into every other page with a one-line description of what it's for.
-- **Transfer decisions** — the headline view over `mart_transfer_decision`, led by three
+- **Transfer decisions** — the headline view over `mart_transfer_decision`, led by five
   actionable-highlight sections: **movers since last snapshot** (high-ownership players whose
   recommendation bucket flipped day-over-day, split into consider-selling / consider-buying),
-  **budget picks** (best `transfer_score` under a user-set price cutoff), and **clean sheet
-  picks** (top goalkeeper/defender holds by `mart_team_defensive_outlook`), then top pick per
-  position. The full sortable/filterable table and detailed methodology are demoted into a
-  collapsed section, with a click-a-row card showing the five weighted signals behind the score.
+  **budget picks** (best `transfer_score` under a user-set price cutoff), **differentials**
+  (high score, low ownership, for climbing rank rather than tracking the template), **clean
+  sheet picks** (top goalkeeper/defender holds by `mart_team_defensive_outlook`), and
+  **captain this gameweek** (top scores paired with each player's next fixture specifically,
+  not the rolling next-5), then top pick per position. The full sortable/filterable table and
+  detailed methodology are demoted into a collapsed section, with a click-a-row card showing
+  the five weighted signals behind the score.
+- **My Team** — the only page that calls the live FPL API directly rather than reading from
+  MotherDuck: given a manager's public team ID, fetches their current picks
+  (`entry/{id}/event/{gw}/picks/`, no auth required) and joins them against
+  `mart_transfer_decision` on `player_id` (FPL's own `element` id — no mapping needed, it's
+  the same id our own `player_id` column already is). Shows squad value/bank, flags
+  drop/monitor players with a same-position affordable replacement suggestion, and compares
+  the manager's actual captain against the highest-scoring fit starter in their XI. No new
+  ingestion or dbt models — the picks are per-manager and change within a day (transfers,
+  chip use), which is the opposite of what the daily snapshot pattern is for.
 - **League table** — reads `mart_league_table`: badges, last-5 form guide, and
   qualification/relegation zone tints.
 - **Player stats** — top scorers/assists leaderboards and a goals-vs-xG scatter with

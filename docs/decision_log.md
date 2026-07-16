@@ -86,16 +86,6 @@ These entries supersede rather than edit the originals above, per this log's own
 | 35 | Day-over-day recommendation change | **`prev_transfer_score` / `prev_recommendation` / `recommendation_trend` added directly to `mart_transfer_decision`**, via the same `lag() over (partition by player_id order by load_date)` idiom as `mart_player_price_momentum` / `mart_player_form_trend` (#16) — not a separate mart | The comparison is business logic about the same signal the mart already owns (#19's dividing line). Unlike the two precedent marts, `recommendation` is itself computed inside this model, not a raw staged column — it has to be hoisted into its own CTE (and given an ordinal `recommendation_rank`, mapped from the bucket name rather than duplicating the threshold conditions) one step before the lag, which the precedents never needed. `prev_recommendation` stays untested for nullness — legitimately null on a player's first-ever snapshot, and `dbt build` runs in the live daily pipeline, so a bad `not_null` test would go red on every new player. `recommendation_trend` is always computed and gets both `not_null` and `accepted_values`, since the new UI feature filters on it directly. Budget picks needed zero dbt changes — a price/score filter over columns the mart already exposed. |
 | 36 | Empty-state honesty for movers | **Always render the movers section; empty subsets get an explanatory caption, not a hidden section** | As of this snapshot history (4 days, 2026-07-09 through 2026-07-12, deep preseason — the live pipeline only went green 2026-07-10) `transfer_score` hasn't moved day-over-day at all: zero movers is the correct, expected answer right now, not a bug. Hiding the section when empty would make a real feature look unbuilt to anyone viewing the live site during a quiet week; an honest caption both proves the feature works and explains why the page is quiet, the same instinct as #26 / #33. |
 
-## Deferred (still open)
-
-- **FPL ↔ WhoScored *team* mapping.** #23 resolves players; team ids stay unmapped until a
-  mart actually needs to join at team grain (name-based mapping is trivial by comparison).
-- **`player_id` resets across a season rollover**, and `mart_transfer_decision`'s new
-  `lag() partition by player_id` (#35) inherits the same characteristic `mart_player_price_momentum`
-  / `mart_player_form_trend` already have unaddressed: at a season boundary a reused `player_id`
-  could produce a spurious `prev_recommendation` where `'no_prior_snapshot'` would be correct.
-  Not fixed here; `player_code` (stable across seasons, per #29) is the eventual fix if it matters.
-
 ## More insights + a guided entry point (2026-07-12)
 
 Follow-up to the same session's transfer-decisions redesign: more concrete "what should I
@@ -108,3 +98,34 @@ into the site instead of dropping straight into a data page.
 | 38 | Team-grain join, no new mapping table | **Clean-sheet rate derived entirely from FPL's own data** (`max(clean_sheets)` per team from `stg_fpl_players`, divided by `mart_league_table.played`) rather than crossing into Understat's team-level xGA | A proper Understat↔FPL *team* join needs the same rigor as the player maps (#23/#28: deterministic exact-match ladder, verified coverage) — Understat and FPL don't share team-name conventions, and building that cross-source mapping correctly needs a review pass this one didn't have. Staying inside already-joined FPL data ships a real, defensible signal today without taking on an unverified new join. |
 | 39 | Team xGA over/underperformance | **New "Defence: xGA minus goals conceded" chart on the xG Analytics page**, mirroring the existing player finishing chart (goals minus xG) but at team grain | Directly asked for and cheap to add — `stg_understat_team_matches` already carries both `xga` and `goals_conceded`, so this is a pure aggregation/chart addition, no new dbt model. Positive = conceding fewer than the chances allowed suggest (a defense overperforming, regression risk); negative = leaking more than deserved (buy-low territory once it corrects) — same interpretive frame as the attacking chart, just facing the other way. |
 | 40 | Site entry point | **New Home page** (`app/home.py`), set as the `st.navigation` default ahead of Transfer Decisions: a one-paragraph pitch, four "today's highlights" cards each pulled from a different mart (top transfer pick, biggest xG performance story, best clean-sheet bet, league leader) linking into the page that explains it, then an `st.page_link` row into every page with a one-line description | The four pages had no guided path in — a first-time visitor landed straight on a sortable table with no context for what the site does or where to look next. Highlight cards double as a live demo of every page's headline signal without requiring a click, and `st.page_link` (not raw URLs or sidebar-only nav) keeps navigation inside Streamlit's own routing. |
+
+## Squad-level decisions + a real backtest question (2026-07-15)
+
+Everything so far scored players in isolation. The real gap: nothing answered "what should
+*I* do with the squad I actually have" — captaincy, budget, and drops in the context of your
+15 players and your bank, not the full player pool.
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 41 | My Team squad view | **New page calling the live FPL API directly** (`entry/{id}/event/{gw}/picks/`, public, no auth) rather than any new ingestion or dbt model — joined against `mart_transfer_decision` on `player_id`, which is exactly FPL's own `element` id already, confirmed empirically before writing any UI code | An individual manager's squad changes within a day (transfers, chip use) — the opposite of what the daily-snapshot pattern (#6) exists for, so this is a live lookup, not a new time series. Verified live against the real API first (`entry/1/`, `entry/1/event/38/picks/`) rather than assuming field names from memory — `bank`/`value` arrive pre-computed in tenths of £m, `picks[].element` is the join key, no mapping layer needed. |
+| 42 | Off-season squad framing | **Detect `current_event.finished == True` with no `is_next` event and say so on-page**, rather than silently showing a stale-looking squad | The live pipeline confirmed this exact gap already exists at the mart level (#36) — the 2025/26 season finished (38/38 played) and 2026/27's fixtures aren't published yet. `entry/{id}/event/38/picks/` still returns real, correct data (a manager's final squad), so showing it is right; not labeling it as "last season, not live" would read as broken or lagging instead of accurate. |
+| 43 | Captaincy + weak-link suggestions scoped to the user's own squad | **Compare the actual captain against the highest-`transfer_score` fit starter in the user's XI; flag squad members with `recommendation` in (drop, monitor) and suggest the best same-position, affordable (`price + bank`) replacement not already owned** | Reuses `transfer_score` and the availability hard gate exactly as-is — no new weighting scheme, just applying the existing one inside a budget/position constraint instead of across the whole player pool. Multiple weak links can suggest the same replacement (no dedup) — same call as the existing budget-picks/top-picks overlap: reinforcing, not confusing, not worth the extra logic. |
+| 44 | Transfer Decisions: two more highlight sections | **"🎯 Differentials"** (high `transfer_score`, low ownership, user-adjustable threshold) and **"👑 Captain this gameweek"** (top scores paired with the *single* next fixture per team, not the rolling next-5 `mart_team_fixture_difficulty` already averages) | Differentials is a straight low-ownership filter over existing columns — same shape as budget picks (#34), zero new data. Captaincy is specifically a *this-week* decision, so it needed the one-fixture-ahead row (`upcoming_fixture_number = 1`) rather than the 5-game rolling average `transfer_score` already bakes in; reused `mart_team_fixture_difficulty` as-is rather than adding a new blended score, to avoid inventing yet another unvalidated weighting scheme. |
+| 45 | "Backtest transfer_score" reframed before building anything | **Investigated feasibility first, found a real blocker, and said so rather than building something that silently claims more than it can prove**: `transfer_score` depends on our own daily snapshot deltas (price momentum, form trend), and that pipeline has only run since 2026-07-10 — there is no historical time series of our own inputs to replay. A genuine backtest of the exact daily-computed score isn't currently possible | The honest fallback is validating the *ingredients* (e.g. does season-total Understat npxG+xA correlate with realized points?) using `event/{gw}/live/`, which serves real historical per-gameweek results for any past gameweek regardless of when it's called — a different, weaker claim than "would our score have called it," and worth keeping visibly different. Deferred, not built, pending a decision on which version to pursue. |
+
+## Deferred (still open)
+
+- **Ingredient validation for `transfer_score`** (#45) — checking whether the individual signals
+  (value, form, underlying xG) correlate with realized historical points, using FPL's
+  `event/{gw}/live/` endpoint for real per-gameweek results. Needs one new small ingestion job.
+  Not a replay of the exact daily score (that history doesn't exist before 2026-07-10).
+- **WhoScored decision-layer signal** — the export is a season behind the live FPL data
+  (2024/25 vs. current), so any signal built from it needs either a fresh export or clear
+  "last season" labeling rather than a real-time claim. Not built pending that call.
+- **FPL ↔ WhoScored *team* mapping.** #23 resolves players; team ids stay unmapped until a
+  mart actually needs to join at team grain (name-based mapping is trivial by comparison).
+- **`player_id` resets across a season rollover**, and `mart_transfer_decision`'s
+  `lag() partition by player_id` (#35) inherits the same characteristic `mart_player_price_momentum`
+  / `mart_player_form_trend` already have unaddressed: at a season boundary a reused `player_id`
+  could produce a spurious `prev_recommendation` where `'no_prior_snapshot'` would be correct.
+  Not fixed here; `player_code` (stable across seasons, per #29) is the eventual fix if it matters.
