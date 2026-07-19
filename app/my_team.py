@@ -200,6 +200,10 @@ else:
 
 st.divider()
 st.subheader("🔁 Weak links")
+st.caption(
+    "Squad players flagged drop or monitor today, each with the best same-position "
+    "replacement your actual budget (their price + your bank) covers."
+)
 weak = squad[squad["recommendation"].isin(["drop", "monitor"]) & squad["player_id"].notna()]
 if weak.empty:
     st.caption("No one in your squad is flagged drop/monitor today.")

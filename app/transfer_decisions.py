@@ -112,6 +112,11 @@ df = load_latest_snapshot()
 st.caption(f"Snapshot: {df['load_date'].iloc[0]:%Y-%m-%d} — {len(df)} players scored")
 
 st.subheader("📢 Movers since last snapshot")
+st.caption(
+    "Verdict changes since yesterday's snapshot -- the day-over-day signal the FPL "
+    "site itself can't show you. Catch a template player trending toward sell before "
+    "everyone else's eye test catches up."
+)
 all_movers = df[df["recommendation_trend"].isin(["upgraded", "downgraded"])]
 
 if all_movers.empty:
@@ -316,6 +321,10 @@ for tile, (_, row) in zip(captain_tiles, captain_pool.head(5).iterrows()):
 st.divider()
 
 st.subheader("Top pick by position")
+st.caption(
+    "The single highest transfer_score in each position today, price no object -- "
+    "the ceiling to judge every cheaper option against."
+)
 tiles = st.columns(4)
 for tile, pos in zip(tiles, ["GKP", "DEF", "MID", "FWD"]):
     pool = df[df["position_short_name"] == pos]
