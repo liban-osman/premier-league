@@ -163,6 +163,22 @@ it from view with `column_order` instead of slicing it out beforehand. Both `App
 runs (not just no-exception smoke tests) and the visual pass caught this — the earlier smoke test
 alone (default/unloaded state) had not.
 
+## A silent outage, and closing the loop on it (2026-07-21)
+
+The MotherDuck trial lapsed mid-project and the daily snapshot workflow failed for two
+days (2026-07-17, 2026-07-18) before anyone noticed — a manual check during unrelated
+work caught it, not the pipeline itself.
+
+| # | Decision | Choice | Rationale |
+|---|---|---|---|
+| 57 | Failure visibility for `fpl_snapshot_pipeline` | **A final `if: failure()` step using `actions/github-script` opens a GitHub issue labeled `pipeline-failure` (or comments on the existing one if the incident is still open)**, rather than relying on GitHub's own default email notifications | Email-on-failure needs no code at all, but it's a personal setting that lives outside the repo and depends on notification settings staying correct — the issue-based approach is versioned, visible to anyone looking at the repo (including a reviewer), and the open/comment split means a multi-day outage produces one thing to close, not one issue per red day. Uses the default `GITHUB_TOKEN` (scoped to `issues: write` on this job only) — no new secret. |
+
+Confirms the S3-first design paid for itself exactly as intended: both failed days had
+already landed raw JSON in S3 before the MotherDuck step failed, so once the trial was
+resolved, one `dbt build` absorbed both missed days with zero backfill script needed —
+the mart's `count(*) per load_date` shows an unbroken 841-player run for every day
+including the two that failed.
+
 ## Deferred (still open)
 
 - **Ingredient validation for `transfer_score`** (#45) — checking whether the individual signals

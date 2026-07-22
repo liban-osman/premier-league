@@ -54,7 +54,10 @@ different automation stories:
   GitHub Actions instead of Airflow here because there's no free way to keep an Airflow
   scheduler running unattended 24/7 for a personal project, and Actions is free for a public
   repo. `BUCKET`, `AWS_*`, and `MOTHERDUCK_TOKEN` live as **GitHub repo secrets** (configured,
-  live, and green as of 2026-07-10).
+  live, and green as of 2026-07-10). If any step fails, a final `if: failure()` step opens
+  (or comments on an already-open) GitHub issue labeled `pipeline-failure` — a red run went
+  unnoticed for two days in production before a manual check caught it (decision log,
+  2026-07-21), so the run now surfaces its own failures instead of waiting to be found.
 - `understat_snapshot_pipeline` — **GitHub Actions cron, `@weekly`** (Mondays, after the
   weekend round), plus `workflow_dispatch` with a seasons input for historical backfill.
   Weekly, not daily, and a separate workflow from the FPL snapshot on purpose: Understat
