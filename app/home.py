@@ -49,7 +49,9 @@ def load_xg_story():
             """
             select player_name, team_name, goals, xg, (goals - xg) as delta, season
             from silver.stg_understat_players
-            where season = (select max(season) from silver.stg_understat_players)
+            where season = (
+                select max(season) from silver.stg_understat_players where minutes >= 900
+            )
               and minutes >= 900
             order by abs(goals - xg) desc
             limit 1
