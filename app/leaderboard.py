@@ -1,8 +1,9 @@
 import pandas as pd
 import requests
 import streamlit as st
+from ui import hero
 
-st.title("Leaderboard")
+hero("Leaderboard", "See where you stand in your mini-league.", kicker="Mini-league")
 st.caption(
     "Enter your FPL team ID (from your Points page URL: "
     "fantasy.premierleague.com/entry/**12345**/event/1) to see your mini-league standings."

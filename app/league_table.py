@@ -1,14 +1,14 @@
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import badge_url
+from ui import badge_url, hero
 
-st.title("League Table")
-st.caption(
-    "Derived from fixture results in gold.mart_league_table, not FPL's own team "
-    "records — FPL zeroes those in preseason snapshots. Tiebreaks: points, goal "
-    "difference, goals scored."
+hero(
+    "League Table",
+    "Standings, form guide and qualification/relegation zones.",
+    kicker="Premier League",
 )
+st.caption("Built from match results. Tiebreaks: points, goal difference, goals scored.")
 
 
 @st.cache_data(ttl=3600)

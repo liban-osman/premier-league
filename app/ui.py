@@ -30,7 +30,33 @@ POSITION_COLORS = {
 
 # Home page's four "today's highlights" cards -- one per destination page,
 # not a status/position, so its own small fixed list keyed by position index.
-HIGHLIGHT_COLORS = ["#9085e9", "#3987e5", "#199e70", "#d95926"]
+HIGHLIGHT_COLORS = ["#00ff85", "#04f5ff", "#ff2882", "#ebff00"]
+
+# Global look: broadcast-style display font, gradient hero, lifted cards.
+# Colors mirror .streamlit/config.toml; this only adds what [theme] can't.
+BASE_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+html, body, .stApp, [class*="st-"], button, input { font-family: 'Inter', system-ui, sans-serif; }
+h1, h2, h3 { font-family: 'Inter', system-ui, sans-serif !important; font-weight: 700;
+    letter-spacing: -0.02em; }
+.hero h1, .big-stat { font-family: 'Barlow Condensed', sans-serif !important;
+    letter-spacing: 0.01em; text-transform: uppercase; }
+.hero { background: linear-gradient(115deg, #38003c 0%, #6a0f7a 55%, #00b86b 130%);
+    border-radius: 20px; padding: 2.4rem 2.6rem; margin-bottom: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.14); }
+.hero h1 { font-size: 3.4rem; line-height: 1; margin: 0 0 0.6rem 0; padding: 0; color: #fff; }
+.hero p { font-size: 1.1rem; max-width: 52rem; margin: 0; color: rgba(255,255,255,0.88); }
+.hero-kicker { color: #00ff85; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; font-size: 0.8rem; margin-bottom: 0.5rem; }
+.kicker { color: rgba(255,255,255,0.65); font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.14em; text-transform: uppercase; }
+.big-stat { font-size: 2.6rem; font-weight: 800; line-height: 1.05; margin: 0.15rem 0; }
+[class*="st-key-highlight-"], [class*="st-key-nav-"] {
+    background: linear-gradient(160deg, #2f0a39 0%, #1d0524 100%) !important;
+    border-radius: 16px !important; transition: transform .15s ease, box-shadow .15s ease; }
+[class*="st-key-highlight-"]:hover, [class*="st-key-nav-"]:hover {
+    transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
+"""
 
 
 def inject_theme_css() -> None:
@@ -47,7 +73,17 @@ def inject_theme_css() -> None:
         f'[class*="st-key-highlight-{i}"] {{ border-top: 3px solid {color} !important; }}'
         for i, color in enumerate(HIGHLIGHT_COLORS)
     ]
-    st.markdown(f"<style>{''.join(rules)}</style>", unsafe_allow_html=True)
+    st.markdown(f"<style>{BASE_CSS}{''.join(rules)}</style>", unsafe_allow_html=True)
+
+
+def hero(title: str, subtitle: str, kicker: str = "") -> None:
+    """Gradient banner for a page's top. Plain HTML so it can be reused by
+    every page without per-page CSS."""
+    kicker_html = f'<div class="hero-kicker">{kicker}</div>' if kicker else ""
+    st.markdown(
+        f'<div class="hero">{kicker_html}<h1>{title}</h1><p>{subtitle}</p></div>',
+        unsafe_allow_html=True,
+    )
 
 
 def position_badge(position: str | None) -> str:

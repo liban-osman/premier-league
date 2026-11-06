@@ -2,9 +2,13 @@ import pandas as pd
 import requests
 import streamlit as st
 from db import get_conn
-from ui import STATUS_COLORS, badge_url, photo_url, position_badge
+from ui import STATUS_COLORS, badge_url, hero, photo_url, position_badge
 
-st.title("My Team")
+hero(
+    "My Team",
+    "Your squad against today's signals: weak links, suggested swaps and who to captain.",
+    kicker="Your squad",
+)
 st.caption(
     "Enter your FPL team ID (from your Points page URL: "
     "fantasy.premierleague.com/entry/**12345**/event/1) to see your squad against "

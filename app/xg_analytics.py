@@ -2,13 +2,14 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import MUTED_INK, series_hues, text_halo, text_ink
+from ui import MUTED_INK, hero, series_hues, text_halo, text_ink
 
-st.title("xG Analytics")
-st.caption(
-    "Team and player expected-goals analytics. xG model: [Understat](https://understat.com) — "
-    "season aggregates refreshed weekly."
+hero(
+    "xG Analytics",
+    "Who is over- or under-performing their chances, for teams and players.",
+    kicker="Expected goals",
 )
+st.caption("xG model: [Understat](https://understat.com) — refreshed weekly.")
 
 
 # Reads silver directly: season-level sums/averages of the cleaned staging

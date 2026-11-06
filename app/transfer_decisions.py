@@ -2,9 +2,13 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import badge_url, photo_url, position_badge, series_hues
+from ui import badge_url, hero, photo_url, position_badge, series_hues
 
-st.title("FPL Transfer Decisions")
+hero(
+    "Transfer Decisions",
+    "Who to buy, hold, monitor or sell today -- scored daily from price, form, fixtures and xG.",
+    kicker="Daily picks",
+)
 
 # Status markers ship as icon + label together, never color alone.
 VERDICT = {

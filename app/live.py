@@ -2,12 +2,12 @@ import pandas as pd
 import requests
 import streamlit as st
 from db import get_conn
-from ui import POSITION_COLORS, badge_url, photo_url
+from ui import POSITION_COLORS, badge_url, hero, photo_url
 
-st.title("Live")
-st.caption(
-    "Live gameweek scores straight from FPL's live API -- goals, assists, bonus, and "
-    "total points as they're provisionally awarded."
+hero(
+    "Live",
+    "This gameweek's scores as they land: goals, assists, bonus and total points.",
+    kicker="Gameweek live",
 )
 
 

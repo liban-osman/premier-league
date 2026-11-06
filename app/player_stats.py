@@ -2,9 +2,13 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 from db import get_conn
-from ui import MUTED_INK, badge_url, photo_url, series_hues, text_halo, text_ink
+from ui import MUTED_INK, badge_url, hero, photo_url, series_hues, text_halo, text_ink
 
-st.title("Player Stats — season so far")
+hero(
+    "Player Stats",
+    "Top scorers, assists and goals versus xG -- the season so far.",
+    kicker="Season so far",
+)
 
 
 # Reads silver directly: these are pure projections of the cleaned staging
