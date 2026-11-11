@@ -55,14 +55,16 @@ h1, h2, h3 { font-family: 'Inter', system-ui, sans-serif !important; font-weight
     background: linear-gradient(160deg, #2f0a39 0%, #1d0524 100%) !important;
     border-radius: 16px !important; transition: transform .15s ease, box-shadow .15s ease; }
 [class*="st-key-status-"] { border-radius: 14px !important; padding: 0.35rem 0.2rem;
-    border-color: rgba(255,255,255,0.6) !important; box-shadow: 0 2px 10px rgba(0,0,0,0.35);
+    border-color: rgba(255,255,255,0.22) !important; box-shadow: 0 2px 10px rgba(0,0,0,0.35);
     transition: transform .15s ease, box-shadow .15s ease; }
 [class*="st-key-status-"]:hover { transform: translateY(-2px);
     box-shadow: 0 8px 22px rgba(0,0,0,0.4); }
 [class*="st-key-status-"] [data-testid="stColumn"]:first-child img { border-radius: 12px;
-    background: radial-gradient(circle at 50% 30%, #ffffff, #d9c2f2); }
-[class*="st-key-status-"] * { color: #1d0524 !important; }
-[class*="st-key-status-"] [data-testid="stCaptionContainer"] * { color: #4a2a5c !important; }
+    background: radial-gradient(circle at 50% 30%,
+    rgba(255,255,255,0.35), rgba(255,255,255,0.08)); }
+[class*="st-key-status-"] * { color: #ffffff !important; }
+[class*="st-key-status-"] [data-testid="stCaptionContainer"] *
+    { color: rgba(255,255,255,0.82) !important; }
 [class*="st-key-status-"] p { font-size: 1rem; }
 [class*="st-key-highlight-"]:hover, [class*="st-key-nav-"]:hover {
     transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
@@ -78,7 +80,7 @@ def inject_theme_css() -> None:
     body on every interaction, so one call covers all pages."""
     rules = [
         f'[class*="st-key-status-{status}-"] {{ border-left: 4px solid {color} !important; '
-        f"background: linear-gradient(135deg, #ffffff 0%, #efe3fb 60%, {color}55 160%) "
+        f"background: linear-gradient(135deg, {color}40 0%, #6d2d90 38%, #4f1a6e 100%) "
         f"!important; }}"
         for status, color in STATUS_COLORS.items()
     ] + [
